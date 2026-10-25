@@ -304,8 +304,7 @@ body.navhide .tabs,body.kb .tabs{transform:translateY(14px) scale(.94);opacity:0
 .scrollrow{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .scrollrow::-webkit-scrollbar{display:none}
 .scrollrow .chip{flex:0 0 auto;white-space:nowrap}
-#saverun{position:sticky;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:5;transition:bottom .3s ease;box-shadow:0 10px 30px -8px rgba(0,0,0,.7)}
-body.navhide #saverun,body.kb #saverun{bottom:14px}
+#saverun{position:static}
 
 /* history v2 */
 .card.ribbon{padding:12px 14px;display:flex;flex-direction:column;gap:8px}
