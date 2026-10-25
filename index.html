@@ -383,6 +383,14 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
 .proginline{display:flex;align-items:center;gap:12px}
 .proginline .progress{flex:1}
 .proginline .pl{font:700 13.5px var(--body);color:rgba(255,255,255,.7);white-space:nowrap}
+
+.subh{margin:6px 0 0;font:600 12px var(--body);text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.45)}
+.hf{margin:-2px 0}
+.rstats{display:flex;flex-wrap:wrap;gap:6px 16px;font:500 14px var(--body);color:rgba(255,255,255,.6)}
+.rstats b{font:800 18px var(--body);color:#f5f6f7;letter-spacing:-.01em}
+.lastrun{font:500 13.5px var(--body);color:rgba(255,255,255,.6)}
+.lastrun b{color:#f5f6f7;font-weight:700}
+.lastrun span{color:rgba(255,255,255,.4);margin-left:4px}
 </style>
 </head>
 <body>
@@ -881,6 +889,8 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
     h+='<div class="stats"><div class="stat"><b>'+fmtKm(wk)+'</b><span>'+uk+' this week</span></div><div class="stat"><b>'+fmtKm(l4)+'</b><span>'+uk+' last 4 wks</span></div><div class="stat"><b>'+(longest?fmtKm(longest):"–")+'</b><span>longest '+(act==="Stairs"?'session':lc+' km')+'</span></div></div>';
     var lastR=sortedRuns(act)[0],phKm=lastR?(act==="Row"?String(Math.round(lastR.km*1000)):String(Math.round(lastR.km*100)/100)):A.ph;
     var open=detailsOpen||runDraft.feel||runDraft.note||runDraft.type!==A.defType;
+    var lr=sortedRuns(act)[0];
+    if(lr)h+='<div class="lastrun">Last '+lc+': <b>'+fmtDist(act,lr.km)+'</b> · '+fmtDur(lr.secs)+' · '+fmtMetric(act,lr.km,lr.secs)+' '+A.per+' <span>'+esc(dateLabel(lr.date))+'</span></div>';
     h+='<section class="card"><div class="logtop"><h2>Log a '+lc+'</h2><label class="datepill"><span id="dtxt">'+esc(dateLabel(runDraft.date))+'</span><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg><input type="date" id="rdate" aria-label="Date" value="'+esc(runDraft.date)+'"></label></div>';
     if(!WHERE[act]||runDraft.where===WHERE[act][1])h+='<button class="btn" id="scan"'+(scanning?' disabled':'')+'>'+(scanning?'Reading photo…':'Scan a photo of the '+(act==="Row"?'rowing machine':act==="Cycle"?'exercise bike':act==="Stairs"?'stair climber':'treadmill')+' screen')+'</button>';
     if(WHERE[act])h+='<div class="where">'+WHERE[act].map(function(w){return '<button class="chip" data-where="'+w+'" aria-pressed="'+(runDraft.where===w)+'">'+w+'</button>'}).join('')+'</div>';
@@ -897,16 +907,6 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
     h+='<button class="primary" id="saverun" disabled>Save '+lc+'</button></section>';
     h+='<section class="card"><h3>'+(act==="Stairs"?'Floors':'Kilometres')+' per week ('+lc+')</h3>'+weeklyChart(act)+'</section>';
     h+='<section class="card"><h3>'+(act==="Row"?'Split trend (lower is faster)':HIGHER[act]?(act==="Stairs"?'Floors per minute trend (higher is faster)':'Speed trend (higher is faster)'):'Pace trend (lower is faster)')+'</h3>'+paceChart(act)+'</section>';
-    var list=sortedRuns(act);
-    if(list.length){
-      h+='<h3 style="font:600 12px var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:6px 0 0">Past '+lc+'s</h3>';
-      list.forEach(function(r){
-        h+='<div class="card runitem"><div class="runhead"><b>'+esc(fmtDate(r.date))+'</b><span><span class="tag">'+esc(r.type||act)+'</span>'+(r.where?' <span class="tag">'+esc(r.where)+'</span>':'')+'</span></div>'+
-          '<div class="runmeta"><span>'+fmtDist(act,r.km)+'</span><span>'+fmtDur(r.secs)+'</span><span>'+fmtMetric(act,r.km,r.secs)+' '+A.per+'</span>'+(r.feel?'<span>Felt '+r.feel+'/5</span>':'')+'</div>'+
-          (r.note?'<div class="note">'+esc(r.note)+'</div>':'')+
-          '<button class="del" data-delrun="'+esc(r.id)+'">'+(confirmDel===r.id?'Tap again to delete':'Delete')+'</button></div>';
-      });
-    }
     main.innerHTML=h;updatePaceBox();
   }
 
@@ -941,22 +941,60 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
     var streak=0;i=on[today]?0:1;while(on[addDays(today,-i)]&&streak<60){streak++;i++}
     return '<div class="card ribbon"><div class="rtop"><span class="last">Last 14 days</span><b>'+cnt+' session'+(cnt===1?'':'s')+(streak>1?' · '+streak+' day streak':'')+'</b></div><div class="rdots">'+dots+'</div></div>';
   }
+  var histFilter="all",menuIsRun=false;
+  var HF=[["all","All"],["gym","Workouts"],["Run","Run"],["Row","Row"],["Cycle","Cycle"],["Stairs","Stairs"]];
+  function sortedAll(){
+    var a=state.sessions.map(function(x){return {k:"s",x:x}}).concat(state.runs.map(function(x){return {k:"r",x:x}}));
+    return a.sort(function(p,q){return p.x.date===q.x.date?(p.x.id<q.x.id?1:-1):(p.x.date<q.x.date?1:-1)});
+  }
+  function cardioRecs(){
+    var out=[];
+    Object.keys(ACTS).forEach(function(act){
+      var rs=state.runs.filter(function(r){return actOf(r)===act&&r.km>0&&r.secs>0}).sort(function(a,b){return a.date===b.date?(a.id<b.id?-1:1):(a.date<b.date?-1:1)});
+      if(!rs.length)return;
+      var hi=!!HIGHER[act],best=null,longest=0;
+      rs.forEach(function(r){var m=metricOf(act,r.km,r.secs);if(best===null||(hi?m>best.m:m<best.m))best={m:m,r:r};if(r.km>longest)longest=r.km});
+      out.push({act:act,best:best,longest:longest,n:rs.length,isNew:rs.length>1&&best.r===rs[rs.length-1],series:rs.map(function(r){var m=metricOf(act,r.km,r.secs);return hi?m:-m})});
+    });
+    return out;
+  }
+  function runCard(r){
+    var act=actOf(r),A=ACTS[act],open=!!openCards[r.id],more=!!(r.feel||r.note);
+    var h='<div class="card hcard'+(open?' open':'')+'"'+(more?' data-card="'+esc(r.id)+'"':'')+'><div class="htop"><div><b>'+esc(fmtDate(r.date))+'</b><span class="last">'+esc(act)+(r.where?' · '+esc(r.where):'')+(r.type&&r.type!==act?' · '+esc(r.type):'')+'</span></div><button class="dots" data-menu="'+esc(r.id)+'" data-mk="run" aria-label="Options"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button></div>'+
+      '<div class="rstats"><span><b>'+fmtDist(act,r.km)+'</b></span><span><b>'+fmtDur(r.secs)+'</b></span><span><b>'+fmtMetric(act,r.km,r.secs)+'</b> '+A.per+'</span></div>';
+    if(more)h+='<div class="hfoot"><span class="last">'+(r.feel?'Felt '+r.feel+'/5':'')+'</span><span class="chev" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></div>';
+    if(open&&r.note)h+='<div class="cdet"><div class="note">'+esc(r.note)+'</div></div>';
+    return h+'</div>';
+  }
   function renderHist(){
-    var st=histStats(),h='<div class="seg" style="grid-template-columns:1fr 1fr"><button class="chip" data-hv="log" aria-pressed="'+(histView==="log")+'">Workouts</button><button class="chip" data-hv="rec" aria-pressed="'+(histView==="rec")+'">Records</button></div>';
+    var st=histStats(),h='<div class="seg" style="grid-template-columns:1fr 1fr"><button class="chip" data-hv="log" aria-pressed="'+(histView==="log")+'">Log</button><button class="chip" data-hv="rec" aria-pressed="'+(histView==="rec")+'">Records</button></div>';
     var s=sortedSessions();
-    if(!s.length){main.innerHTML=h+'<div class="empty">No workouts logged yet.<br>Finish your first one on the Today tab and it shows up here.</div>';return}
+    if(!s.length&&!state.runs.length){main.innerHTML=h+'<div class="empty">Nothing logged yet.<br>Finish a workout or log a run and it shows up here.</div>';return}
     if(histView==="rec"){
-      EX.forEach(function(e){
-        var r=st.rec[e.id];
-        h+='<div class="card recrow"><div class="rl"><b>'+esc(e.name)+(r.isNew?' <span class="prb">PR</span>':'')+'</b><span class="last">'+(r.best!==null?esc(parseISO(r.date).toLocaleDateString('en-GB',{day:'numeric',month:'short'}))+(r.e1?' · 1RM '+r.e1+' kg':''):'No data yet')+'</span></div>'+sparkSvg(r.series)+'<div class="rb"><b>'+(r.best!==null?r.best:"–")+'</b><span>kg best</span></div></div>';
-      });
+      if(s.length){h+='<h3 class="subh">Strength</h3>';
+        EX.forEach(function(e){
+          var r=st.rec[e.id];
+          h+='<div class="card recrow"><div class="rl"><b>'+esc(e.name)+(r.isNew?' <span class="prb">PR</span>':'')+'</b><span class="last">'+(r.best!==null?esc(parseISO(r.date).toLocaleDateString('en-GB',{day:'numeric',month:'short'}))+(r.e1?' · 1RM '+r.e1+' kg':''):'No data yet')+'</span></div>'+sparkSvg(r.series)+'<div class="rb"><b>'+(r.best!==null?r.best:"–")+'</b><span>kg best</span></div></div>';
+        });
+      }
+      var cr=cardioRecs();
+      if(cr.length){h+='<h3 class="subh">Cardio</h3>';
+        cr.forEach(function(c){
+          var A=ACTS[c.act];
+          h+='<div class="card recrow"><div class="rl"><b>'+esc(c.act)+(c.isNew?' <span class="prb">PR</span>':'')+'</b><span class="last">Longest '+esc(fmtDist(c.act,c.longest))+' · '+c.n+' logged</span></div>'+sparkSvg(c.series)+'<div class="rb"><b>'+fmtMetric(c.act,c.best.r.km,c.best.r.secs)+'</b><span>'+esc(A.per)+' best</span></div></div>';
+        });
+      }
       main.innerHTML=h;return;
     }
     h+=ribbonHtml();
-    s.forEach(function(x){
-      var total=0,names=[];EX.forEach(function(e){var a=x.sets&&x.sets[e.id];if(a&&a.length){total+=a.length;names.push(e.name)}});
+    h+='<div class="chips scrollrow hf">'+HF.map(function(f){return '<button class="chip" data-hf="'+f[0]+'" aria-pressed="'+(histFilter===f[0])+'">'+f[1]+'</button>'}).join('')+'</div>';
+    var feed=sortedAll().filter(function(it){return histFilter==="all"||(histFilter==="gym"?it.k==="s":it.k==="r"&&actOf(it.x)===histFilter)});
+    if(!feed.length)h+='<div class="empty">Nothing here yet.</div>';
+    feed.forEach(function(it){
+      if(it.k==="r"){h+=runCard(it.x);return}
+      var x=it.x,total=0,names=[];EX.forEach(function(e){var a=x.sets&&x.sets[e.id];if(a&&a.length){total+=a.length;names.push(e.name)}});
       var pr=st.prs[x.id]||[],open=!!openCards[x.id];
-      h+='<div class="card hcard'+(open?' open':'')+'" data-card="'+esc(x.id)+'"><div class="htop"><div><b>'+esc(fmtDate(x.date))+'</b><span class="last">Workout A · '+total+' sets</span></div><button class="dots" data-menu="'+esc(x.id)+'" aria-label="Workout options"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button></div>'+
+      h+='<div class="card hcard'+(open?' open':'')+'" data-card="'+esc(x.id)+'"><div class="htop"><div><b>'+esc(fmtDate(x.date))+'</b><span class="last">Workout A · '+total+' sets</span></div><button class="dots" data-menu="'+esc(x.id)+'" data-mk="gym" aria-label="Workout options"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button></div>'+
         '<div class="hnames">'+esc(names.slice(0,3).join(" · "))+(names.length>3?' +'+(names.length-3):'')+'</div>'+
         '<div class="hfoot">'+(pr.length?'<span class="prb">PR · '+esc(pr[0].ex+' '+pr[0].kg+' kg')+(pr.length>1?' +'+(pr.length-1):'')+'</span>':'<span></span>')+'<span class="chev" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></div>';
       if(open){
@@ -966,9 +1004,10 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
       }
       h+='</div>';
     });
-    if(menuFor&&state.sessions.some(function(z){return z.id===menuFor})){
+    var mOk=menuFor&&(menuIsRun?state.runs:state.sessions).some(function(z){return z.id===menuFor});
+    if(mOk){
       var dirty=draft&&(draft.warm||EX.some(function(e){return draft.sets[e.id].some(function(z){return z.done})}));
-      h+='<button class="menuov" data-menuclose="1" aria-label="Close menu"></button><div class="menupop" style="top:'+menuTop+'px"><button data-rep="'+esc(menuFor)+'"><span>'+(confirmRep&&dirty?'Replace today\'s entries?':'Repeat this workout')+'</span></button><i></i><button class="red" data-del="'+esc(menuFor)+'"><span>'+(confirmDel===menuFor?'Tap again to delete':'Delete')+'</span></button></div>';
+      h+='<button class="menuov" data-menuclose="1" aria-label="Close menu"></button><div class="menupop" style="top:'+menuTop+'px">'+(menuIsRun?'':'<button data-rep="'+esc(menuFor)+'"><span>'+(confirmRep&&dirty?'Replace today\'s entries?':'Repeat this workout')+'</span></button><i></i>')+'<button class="red" '+(menuIsRun?'data-delrun':'data-del')+'="'+esc(menuFor)+'"><span>'+(confirmDel===menuFor?'Tap again to delete':'Delete')+'</span></button></div>';
     }
     main.innerHTML=h;
   }
@@ -1040,8 +1079,9 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
     var cd=ev.target.closest("[data-card]");
     if(cd&&!ev.target.closest("button")){var cid=cd.dataset.card;openCards[cid]=!openCards[cid];freshCard=openCards[cid]?cid:null;render();return}
     var t=ev.target.closest("button");if(!t)return;
+    if(t.dataset.hf){histFilter=t.dataset.hf;menuFor=null;render();return}
     if(t.dataset.hv){histView=t.dataset.hv;menuFor=null;render();return}
-    if(t.dataset.menu){var r=t.getBoundingClientRect();menuFor=t.dataset.menu;menuTop=Math.max(12,Math.min(r.bottom+4,window.innerHeight-130));confirmDel=null;confirmRep=false;render();return}
+    if(t.dataset.menu){var r=t.getBoundingClientRect();menuFor=t.dataset.menu;menuIsRun=t.dataset.mk==="run";menuTop=Math.max(12,Math.min(r.bottom+4,window.innerHeight-130));confirmDel=null;confirmRep=false;render();return}
     if(t.dataset.menuclose){menuFor=null;confirmDel=null;confirmRep=false;render();return}
     if(t.dataset.rep){repeatWorkout(t.dataset.rep);return}
     if(t.id==="warm"){draft.warm=!draft.warm;saveDraft();if(draft.warm)buzz();t.textContent=draft.warm?"✓":"";$("#warmcard").classList.toggle("done",draft.warm);return}
