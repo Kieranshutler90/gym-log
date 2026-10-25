@@ -28,6 +28,17 @@ Without this the app still works, and data stays on the phone.
 8. Paste them into `firebase-config.js` as `window.FIREBASE_CONFIG = { ... }`, commit, and wait for Pages to redeploy.
 9. In the app, open **Account**, sign in, and your data starts syncing. Sign in on any other device to see the same log.
 
+## 3. Switch on photo scan (optional)
+
+The **Scan a photo** button on the Cardio tab reads a photo of the rowing machine or treadmill screen and fills in the form. It uses Gemini through Firebase AI Logic, which has a free tier on the Spark plan. Nothing is saved from the photo itself.
+
+1. Firebase console: **Build > AI Logic > Get started**, choose the **Gemini Developer API** and enable it.
+2. Firebase console: **Security > App Check > Apps**, pick your web app and register it with **reCAPTCHA** (it walks you through creating the key; you paste the secret key in Firebase). Add the domain `<your-username>.github.io`. Copy the **site key**.
+3. Paste the site key into `firebase-config.js` as `FIREBASE_APPCHECK_SITE_KEY` (set `FIREBASE_APPCHECK_PROVIDER` to `"enterprise"` if you used reCAPTCHA Enterprise), commit, and let Pages redeploy.
+4. **App Check > APIs**: enforce it for **Firebase AI Logic** only. Leave Cloud Firestore and Authentication unenforced, otherwise sync stops working.
+
+If the scan reads a number wrong, edit it before saving. It is only a shortcut for typing.
+
 ## Moving data across
 
 Use **Account > Backup**. **Copy backup** on one device, then paste it into **Import** on the other. Importing never overwrites anything, it only adds what is missing.
@@ -35,5 +46,5 @@ Use **Account > Backup**. **Copy backup** on one device, then paste it into **Im
 ## Notes
 
 - Photos are shrunk and stored with your data.
-- Cardio: switch between Run and Row. Log distance (km for runs, metres for rowing), time, type, how it felt and notes. Pace (or the 500 m split for rowing) is worked out for you. The run pace chart has a dashed line at the pace needed for a sub 2:15 half marathon.
+- Cardio: switch between Run and Row. Runs can be marked Outdoors or Treadmill. Log distance (km for runs, metres for rowing), time, type, how it felt and notes. Pace (or the 500 m split for rowing) is worked out for you. The run pace chart has a dashed line at the pace needed for a sub 2:15 half marathon.
 - To change the routine, edit the `EX` list near the top of the script in `index.html`.

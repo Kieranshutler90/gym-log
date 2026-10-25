@@ -9,3 +9,8 @@ window.FIREBASE_CONFIG = {
   messagingSenderId: "312241772846",
   appId: "1:312241772846:web:179592c6e07f3af8f6c2bf"
 };
+
+// Photo scan (optional). Paste the public reCAPTCHA site key from Firebase App Check here (see README, step 3).
+// Use "enterprise" instead of "v3" if you set App Check up with reCAPTCHA Enterprise.
+window.FIREBASE_APPCHECK_SITE_KEY = null;
+window.FIREBASE_APPCHECK_PROVIDER = "v3";

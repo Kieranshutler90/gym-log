@@ -1,5 +1,5 @@
 // Simple offline support: network first, fall back to the last cached copy.
-var CACHE = "gym-log-v3";
+var CACHE = "gym-log-v4";
 var CORE = ["./", "index.html", "manifest.webmanifest", "firebase-config.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 
@@ -20,8 +20,8 @@ self.addEventListener("fetch", function (e) {
   if (r.method !== "GET") return;
   var u = new URL(r.url);
   // Never touch Firebase data or auth traffic. The Firebase SDK handles its own offline storage.
-  if (u.host === "firestore.googleapis.com" || u.host === "identitytoolkit.googleapis.com" ||
-      u.host === "securetoken.googleapis.com" || u.host.endsWith("firebaseio.com")) return;
+  if ((u.host.endsWith(".googleapis.com") && u.host !== "fonts.googleapis.com") || u.host.endsWith("firebaseio.com") ||
+      u.pathname.indexOf("/recaptcha/") >= 0) return;
   e.respondWith(
     fetch(r).then(function (res) {
       if (res && (res.ok || res.type === "opaque")) {
