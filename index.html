@@ -128,6 +128,14 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
 .lb .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .lb button{min-height:44px;padding:0 18px;border-radius:8px;border:1px solid #fff;background:transparent;color:#fff;font:600 15px var(--body)}
 .lb button.rm{border-color:#ff8a75;color:#ff8a75}
+#gate{position:fixed;inset:0;z-index:40;background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:auto;
+  padding:calc(16px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-left,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-right,0px))}
+#gate[hidden]{display:none}
+.gatecard{width:100%;max-width:380px;display:flex;flex-direction:column;gap:14px}
+.gatecard h1{font-size:44px}
+.locked .wrap{display:none}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.seg .chip{border-radius:8px;font:700 20px var(--display);letter-spacing:.06em;text-transform:uppercase}
 @media (prefers-reduced-motion:reduce){.progress>i{transition:none}}
 </style>
 </head>
@@ -135,15 +143,25 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
 <div class="wrap">
   <header>
     <h1>Gym Log</h1>
-    <div class="sub"><span>Workout A &amp; running</span><span aria-hidden="true">·</span><span class="sync"><i class="dot" id="dot"></i><span id="status">Saved on this phone</span></span></div>
+    <div class="sub"><span>Workout A &amp; cardio</span><span aria-hidden="true">·</span><span class="sync"><i class="dot" id="dot"></i><span id="status">Saved on this phone</span></span></div>
     <div class="tabs" role="tablist" id="tabs">
       <button class="tab" role="tab" data-tab="today" aria-selected="true">Today</button>
-      <button class="tab" role="tab" data-tab="runs" aria-selected="false">Runs</button>
+      <button class="tab" role="tab" data-tab="runs" aria-selected="false">Cardio</button>
       <button class="tab" role="tab" data-tab="hist" aria-selected="false">History</button>
       <button class="tab" role="tab" data-tab="acct" aria-selected="false">Account</button>
     </div>
   </header>
   <main id="main"></main>
+</div>
+<div id="gate" hidden>
+  <form id="gateform" class="gatecard" autocomplete="on">
+    <h1>Gym Log</h1>
+    <p class="help">Sign in to open your log.</p>
+    <label class="field"><span>Email</span><input type="email" id="gem" name="email" autocomplete="username" inputmode="email" autocapitalize="off" required></label>
+    <label class="field"><span>Password</span><input type="password" id="gpw" name="password" autocomplete="current-password" required></label>
+    <button class="primary" id="gbtn" type="submit">Sign in</button>
+    <div class="help" id="gerr" role="alert"></div>
+  </form>
 </div>
 <input type="file" id="pick" accept="image/*" hidden>
 <input type="file" id="importfile" accept="application/json,.json" hidden>
@@ -161,9 +179,8 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
     {id:"shoulder-press",name:"Shoulder press machine",sets:2,range:"10–12"},
     {id:"core",name:"Cable crunch / plank",sets:3,range:"12",unit:"reps or sec"}
   ];
-  var RUN_TYPES=["Easy","Long","Tempo","Intervals","Race"];
   var TARGET_SECS_PER_KM=8100/21.0975; // sub 2:15 half marathon
-  var K={data:"gl-data-v2",photos:"gl-photos-v2",draft:"gl-draft-v2",runDraft:"gl-rundraft-v2"};
+  var K={data:"gl-data-v2",photos:"gl-photos-v2",draft:"gl-draft-v2",runDraft:"gl-rundraft-v2",auth:"gl-auth-v1"};
   var state={sessions:[],runs:[]}, photos={}, draft=null, runDraft=null, tab="today";
   var confirmDel=null, pickFor=null, importText="";
   var cloud={ready:false,uid:null,email:null,db:null,unsubs:[],err:null,configured:false,loading:false};
@@ -229,7 +246,7 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
       var base="https://www.gstatic.com/firebasejs/10.12.2/";
       await loadScript(base+"firebase-app-compat.js");
       await Promise.all([loadScript(base+"firebase-auth-compat.js"),loadScript(base+"firebase-firestore-compat.js")]);
-      firebase.initializeApp(cfg);
+      if(!(firebase.apps&&firebase.apps.length))firebase.initializeApp(cfg);
       cloud.db=firebase.firestore();
       try{await cloud.db.enablePersistence({synchronizeTabs:true})}catch(e){}
       cloud.ready=true;cloud.loading=false;
@@ -238,12 +255,25 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
       cloud.loading=false;cloud.ready=false;refreshStatus();
     }
   }
+  function lock(on){
+    document.body.classList.toggle("locked",on);
+    var g=$("#gate");g.hidden=!on;
+    if(on){var b=$("#gbtn");if(b)b.disabled=false}else{var pw=$("#gpw");if(pw)pw.value=""}
+    if(!on)render();
+  }
+  function authMsg(e){
+    var c=e&&e.code;
+    if(c==="auth/invalid-credential"||c==="auth/wrong-password"||c==="auth/user-not-found"||c==="auth/invalid-email")return "Wrong email or password.";
+    if(c==="auth/too-many-requests")return "Too many tries. Wait a few minutes and try again.";
+    if(c==="auth/network-request-failed")return "No connection. Try again when you're online.";
+    return "Couldn't sign in. Try again.";
+  }
   function stopListening(){cloud.unsubs.forEach(function(u){try{u()}catch(e){}});cloud.unsubs=[]}
   function onAuth(user){
     stopListening();
     cloud.err=null;
-    if(!user){cloud.uid=null;cloud.email=null;refreshStatus();if(tab==="acct"&&!typing())render();return}
-    cloud.uid=user.uid;cloud.email=user.email;
+    if(!user){cloud.uid=null;cloud.email=null;try{localStorage.removeItem(K.auth)}catch(e){}lock(true);refreshStatus();return}
+    cloud.uid=user.uid;cloud.email=user.email;lsSet(K.auth,1);lock(false);
     listen("sessions",function(snap,first){
       var map={};snap.docs.forEach(function(d){var o=d.data();map[o.id||d.id]=o});
       if(first)state.sessions.forEach(function(x){if(!map[x.id]){map[x.id]=x;cw("sessions",x.id,x)}});
@@ -358,35 +388,45 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
     shrink(f).then(function(u){setPhoto(id,u);if(tab==="today")render();toast("Photo added")},function(){toast("Couldn't read that photo")});
   });
 
-  /* ---------- runs logic ---------- */
-  function newRunDraft(){return {date:todayISO(),km:"",h:"",m:"",s:"",type:"Easy",feel:0,note:""}}
+  /* ---------- cardio logic ---------- */
+  var ACTS={
+    Run:{types:["Easy","Long","Tempo","Intervals","Race"],defType:"Easy",minKm:1,per:"/km",paceLabel:"Pace (min per km)",distLabel:"Distance (km)",ph:"5.00",step:"0.01",mode:"decimal",mph:"30"},
+    Row:{types:["Steady","Intervals","Test","Warm-up"],defType:"Steady",minKm:0.5,per:"/500m",paceLabel:"Split (min per 500 m)",distLabel:"Distance (m)",ph:"2000",step:"1",mode:"numeric",mph:"10"}
+  };
+  function actOf(r){return r&&r.act==="Row"?"Row":"Run"}
+  function paceOf(act,km,secs){return act==="Row"?secs/(km*2):secs/km}
+  function fmtDist(act,km){return act==="Row"?Math.round(km*1000).toLocaleString("en-GB")+" m":fmtKm(km)+" km"}
+  function newRunDraft(act){act=act==="Row"?"Row":"Run";return {date:todayISO(),act:act,km:"",h:"",m:"",s:"",type:ACTS[act].defType,feel:0,note:""}}
   function runSecs(d){return (num(d.h)||0)*3600+(num(d.m)||0)*60+(num(d.s)||0)}
-  function sortedRuns(){return state.runs.slice().sort(function(a,b){return a.date===b.date?(a.id<b.id?1:-1):(a.date<b.date?1:-1)})}
+  function enteredKm(d){var v=num(d.km);if(!(v>0))return 0;return d.act==="Row"?v/1000:v}
+  function sortedRuns(act){return state.runs.filter(function(r){return actOf(r)===act}).sort(function(a,b){return a.date===b.date?(a.id<b.id?1:-1):(a.date<b.date?1:-1)})}
   function updatePaceBox(){
-    var km=num(runDraft.km),secs=runSecs(runDraft),p=$("#pacebox"),b=$("#saverun");
-    if(p)p.textContent=km>0&&secs>0?fmtPace(secs/km):"–";
+    var km=enteredKm(runDraft),secs=runSecs(runDraft),p=$("#pacebox"),b=$("#saverun");
+    if(p)p.textContent=km>0&&secs>0?fmtPace(paceOf(runDraft.act,km,secs)):"–";
     if(b)b.disabled=!(km>0&&secs>0);
   }
   function saveRun(){
-    var km=num(runDraft.km),secs=runSecs(runDraft);
+    var km=enteredKm(runDraft),secs=runSecs(runDraft);
     if(!(km>0&&secs>0))return;
-    var rec={id:uid(),date:runDraft.date,km:Math.round(km*100)/100,secs:Math.round(secs),type:runDraft.type,feel:runDraft.feel||null,note:runDraft.note.trim()};
+    var act=runDraft.act;
+    var rec={id:uid(),date:runDraft.date,act:act,km:Math.round(km*1000)/1000,secs:Math.round(secs),type:runDraft.type,feel:runDraft.feel||null,note:runDraft.note.trim()};
     state.runs=state.runs.concat([rec]);
     saveLocal();cw("runs",rec.id,rec);
-    runDraft=newRunDraft();saveRunDraft();render();toast("Run saved: "+fmtKm(rec.km)+" km at "+fmtPace(rec.secs/rec.km)+" /km");
+    runDraft=newRunDraft(act);saveRunDraft();render();
+    toast(act+" saved: "+fmtDist(act,rec.km)+" at "+fmtPace(paceOf(act,rec.km,rec.secs))+" "+ACTS[act].per);
   }
-  function weeklyTotals(n){
+  function weeklyTotals(n,act){
     var cur=weekStart(todayISO()),out=[];
     for(var i=n-1;i>=0;i--){var w=addDays(cur,-7*i);out.push({week:w,km:0,cur:i===0})}
     var idx={};out.forEach(function(o,i){idx[o.week]=i});
-    state.runs.forEach(function(r){var w=weekStart(r.date);if(idx[w]!=null)out[idx[w]].km+=r.km});
+    state.runs.forEach(function(r){if(actOf(r)!==act)return;var w=weekStart(r.date);if(idx[w]!=null)out[idx[w]].km+=r.km});
     return out;
   }
-  function weeklyChart(){
-    var data=weeklyTotals(8),W=340,H=170,L=28,R=6,T=18,B=26;
+  function weeklyChart(act){
+    var data=weeklyTotals(8,act),W=340,H=170,L=28,R=6,T=18,B=26;
     var max=Math.max.apply(null,data.map(function(d){return d.km}));
     var top=Math.max(5,Math.ceil(max/5)*5),bw=(W-L-R)/data.length,y=function(v){return T+(H-T-B)*(1-v/top)};
-    var s='<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Kilometres run per week, last 8 weeks">';
+    var s='<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Kilometres per week, last 8 weeks">';
     [0,top/2,top].forEach(function(v){s+='<line class="grid" x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v)+'" y2="'+y(v)+'"/><text class="ax" x="'+(L-4)+'" y="'+(y(v)+3)+'" text-anchor="end">'+(Math.round(v*10)/10)+'</text>'});
     data.forEach(function(d,i){
       var x=L+i*bw+bw*0.19,w=bw*0.62,h=(H-T-B)*(d.km/top);
@@ -395,17 +435,19 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
     });
     return s+'</svg>';
   }
-  function paceChart(){
-    var runs=state.runs.filter(function(r){return r.km>=1&&r.secs>0}).sort(function(a,b){return a.date===b.date?(a.id<b.id?-1:1):(a.date<b.date?-1:1)}).slice(-12);
-    if(runs.length<2)return '<div class="help">Log two or more runs of 1 km or longer to see your pace trend.</div>';
+  function paceChart(act){
+    var A=ACTS[act],showTarget=act==="Run";
+    var runs=state.runs.filter(function(r){return actOf(r)===act&&r.km>=A.minKm&&r.secs>0}).sort(function(a,b){return a.date===b.date?(a.id<b.id?-1:1):(a.date<b.date?-1:1)}).slice(-12);
+    if(runs.length<2)return '<div class="help">Log two or more '+(act==="Row"?'rows of 500 m':'runs of 1 km')+' or longer to see your '+(act==="Row"?'split':'pace')+' trend.</div>';
     var W=340,H=170,L=34,R=8,T=14,B=26;
-    var paces=runs.map(function(r){return r.secs/r.km});
-    var lo=Math.min.apply(null,paces.concat([TARGET_SECS_PER_KM]))-15,hi=Math.max.apply(null,paces.concat([TARGET_SECS_PER_KM]))+15;
-    var y=function(p){return T+(H-T-B)*((p-lo)/(hi-lo))}; // faster (smaller) at the top
+    var paces=runs.map(function(r){return paceOf(act,r.km,r.secs)});
+    var pool=showTarget?paces.concat([TARGET_SECS_PER_KM]):paces;
+    var lo=Math.min.apply(null,pool)-15,hi=Math.max.apply(null,pool)+15;
+    var y=function(p){return T+(H-T-B)*((p-lo)/(hi-lo))};
     var x=function(i){return L+(W-L-R)*(runs.length===1?0.5:i/(runs.length-1))};
-    var s='<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Pace per run, faster is higher">';
+    var s='<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+(act==="Row"?"Split per 500 m":"Pace per run")+', faster is higher">';
     [lo,(lo+hi)/2,hi].forEach(function(v){s+='<line class="grid" x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v)+'" y2="'+y(v)+'"/><text class="ax" x="'+(L-4)+'" y="'+(y(v)+3)+'" text-anchor="end">'+fmtPace(v)+'</text>'});
-    s+='<line class="tg" x1="'+L+'" x2="'+(W-R)+'" y1="'+y(TARGET_SECS_PER_KM)+'" y2="'+y(TARGET_SECS_PER_KM)+'"/><text class="tgl" x="'+(W-R)+'" y="'+(y(TARGET_SECS_PER_KM)-4)+'" text-anchor="end">Sub 2:15 half pace '+fmtPace(TARGET_SECS_PER_KM)+'</text>';
+    if(showTarget)s+='<line class="tg" x1="'+L+'" x2="'+(W-R)+'" y1="'+y(TARGET_SECS_PER_KM)+'" y2="'+y(TARGET_SECS_PER_KM)+'"/><text class="tgl" x="'+(W-R)+'" y="'+(y(TARGET_SECS_PER_KM)-4)+'" text-anchor="end">Sub 2:15 half pace '+fmtPace(TARGET_SECS_PER_KM)+'</text>';
     s+='<polyline class="ln" points="'+paces.map(function(p,i){return x(i)+","+y(p)}).join(" ")+'"/>';
     paces.forEach(function(p,i){s+='<circle class="pt" cx="'+x(i)+'" cy="'+y(p)+'" r="4"/>'});
     s+='<text class="ax" x="'+L+'" y="'+(H-8)+'">'+fmtShort(runs[0].date)+'</text><text class="ax" x="'+(W-R)+'" y="'+(H-8)+'" text-anchor="end">'+fmtShort(runs[runs.length-1].date)+'</text>';
@@ -456,26 +498,28 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
   }
 
   function renderRuns(){
-    var cur=weekStart(todayISO()),wk=0,l4=0,longest=0,cutoff=addDays(todayISO(),-27);
-    state.runs.forEach(function(r){if(weekStart(r.date)===cur)wk+=r.km;if(r.date>=cutoff&&r.date<=todayISO())l4+=r.km;if(r.km>longest)longest=r.km});
-    var h='<div class="stats"><div class="stat"><b>'+fmtKm(wk)+'</b><span>km this week</span></div><div class="stat"><b>'+fmtKm(l4)+'</b><span>km last 4 wks</span></div><div class="stat"><b>'+(longest?fmtKm(longest):"–")+'</b><span>longest run km</span></div></div>';
-    h+='<section class="card"><h2>Log a run</h2>';
+    var act=runDraft.act,A=ACTS[act],lc=act.toLowerCase(),today=todayISO(),cur=weekStart(today),cutoff=addDays(today,-27),wk=0,l4=0,longest=0;
+    var mine=state.runs.filter(function(r){return actOf(r)===act});
+    mine.forEach(function(r){if(weekStart(r.date)===cur)wk+=r.km;if(r.date>=cutoff&&r.date<=today)l4+=r.km;if(r.km>longest)longest=r.km});
+    var h='<div class="seg">'+["Run","Row"].map(function(k){return '<button class="chip" data-kind="'+k+'" aria-pressed="'+(act===k)+'">'+k+'</button>'}).join('')+'</div>';
+    h+='<div class="stats"><div class="stat"><b>'+fmtKm(wk)+'</b><span>km this week</span></div><div class="stat"><b>'+fmtKm(l4)+'</b><span>km last 4 wks</span></div><div class="stat"><b>'+(longest?fmtKm(longest):"–")+'</b><span>longest '+lc+' km</span></div></div>';
+    h+='<section class="card"><h2>Log a '+lc+'</h2>';
     h+='<div class="datebar"><label class="l" for="rdate">Date</label><input type="date" id="rdate" value="'+esc(runDraft.date)+'"></div>';
-    h+='<label class="field"><span>Distance (km)</span><input type="number" id="rkm" inputmode="decimal" step="0.01" min="0" placeholder="5.00" value="'+esc(runDraft.km)+'"></label>';
-    h+='<div class="row3"><label class="field"><span>Hours</span><input type="number" id="rh" inputmode="numeric" min="0" placeholder="0" value="'+esc(runDraft.h)+'"></label><label class="field"><span>Minutes</span><input type="number" id="rm" inputmode="numeric" min="0" placeholder="30" value="'+esc(runDraft.m)+'"></label><label class="field"><span>Seconds</span><input type="number" id="rs" inputmode="numeric" min="0" max="59" placeholder="00" value="'+esc(runDraft.s)+'"></label></div>';
-    h+='<div class="pacebox"><span class="last">Pace (min per km)</span><b id="pacebox">–</b></div>';
-    h+='<div><span class="last">Type</span><div class="chips" style="margin-top:6px">'+RUN_TYPES.map(function(t){return '<button class="chip" data-type="'+t+'" aria-pressed="'+(runDraft.type===t)+'">'+t+'</button>'}).join('')+'</div></div>';
+    h+='<label class="field"><span>'+A.distLabel+'</span><input type="number" id="rkm" inputmode="'+A.mode+'" step="'+A.step+'" min="0" placeholder="'+A.ph+'" value="'+esc(runDraft.km)+'"></label>';
+    h+='<div class="row3"><label class="field"><span>Hours</span><input type="number" id="rh" inputmode="numeric" min="0" placeholder="0" value="'+esc(runDraft.h)+'"></label><label class="field"><span>Minutes</span><input type="number" id="rm" inputmode="numeric" min="0" placeholder="'+A.mph+'" value="'+esc(runDraft.m)+'"></label><label class="field"><span>Seconds</span><input type="number" id="rs" inputmode="numeric" min="0" max="59" placeholder="00" value="'+esc(runDraft.s)+'"></label></div>';
+    h+='<div class="pacebox"><span class="last">'+A.paceLabel+'</span><b id="pacebox">–</b></div>';
+    h+='<div><span class="last">Type</span><div class="chips" style="margin-top:6px">'+A.types.map(function(t){return '<button class="chip" data-type="'+t+'" aria-pressed="'+(runDraft.type===t)+'">'+t+'</button>'}).join('')+'</div></div>';
     h+='<div><span class="last">How did it feel?</span><div class="feel" style="margin-top:6px">'+[1,2,3,4,5].map(function(n){return '<button class="chip" data-feel="'+n+'" aria-pressed="'+(runDraft.feel===n)+'" aria-label="Feeling '+n+' of 5">'+n+'</button>'}).join('')+'</div><div class="feelcap" style="margin-top:4px"><span>Rough</span><span>Great</span></div></div>';
-    h+='<label class="field"><span>Notes (optional)</span><textarea id="rnote" rows="2" placeholder="Route, weather, legs, anything to remember">'+esc(runDraft.note)+'</textarea></label>';
-    h+='<button class="primary" id="saverun" disabled>Save run</button></section>';
-    h+='<section class="card"><h3>Kilometres per week</h3>'+weeklyChart()+'</section>';
-    h+='<section class="card"><h3>Pace trend (lower is faster)</h3>'+paceChart()+'</section>';
-    var runs=sortedRuns();
-    if(runs.length){
-      h+='<h3 style="font:600 12px var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:6px 0 0">Past runs</h3>';
-      runs.forEach(function(r){
-        h+='<div class="card runitem"><div class="runhead"><b>'+esc(fmtDate(r.date))+'</b><span class="tag">'+esc(r.type||"Run")+'</span></div>'+
-          '<div class="runmeta"><span>'+fmtKm(r.km)+' km</span><span>'+fmtDur(r.secs)+'</span><span>'+fmtPace(r.secs/r.km)+' /km</span>'+(r.feel?'<span>Felt '+r.feel+'/5</span>':'')+'</div>'+
+    h+='<label class="field"><span>Notes (optional)</span><textarea id="rnote" rows="2" placeholder="'+(act==="Row"?'Resistance, stroke rate, how it felt':'Route, weather, legs, anything to remember')+'">'+esc(runDraft.note)+'</textarea></label>';
+    h+='<button class="primary" id="saverun" disabled>Save '+lc+'</button></section>';
+    h+='<section class="card"><h3>Kilometres per week ('+lc+')</h3>'+weeklyChart(act)+'</section>';
+    h+='<section class="card"><h3>'+(act==="Row"?'Split trend (lower is faster)':'Pace trend (lower is faster)')+'</h3>'+paceChart(act)+'</section>';
+    var list=sortedRuns(act);
+    if(list.length){
+      h+='<h3 style="font:600 12px var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:6px 0 0">Past '+lc+'s</h3>';
+      list.forEach(function(r){
+        h+='<div class="card runitem"><div class="runhead"><b>'+esc(fmtDate(r.date))+'</b><span class="tag">'+esc(r.type||act)+'</span></div>'+
+          '<div class="runmeta"><span>'+fmtDist(act,r.km)+'</span><span>'+fmtDur(r.secs)+'</span><span>'+fmtPace(paceOf(act,r.km,r.secs))+' '+A.per+'</span>'+(r.feel?'<span>Felt '+r.feel+'/5</span>':'')+'</div>'+
           (r.note?'<div class="note">'+esc(r.note)+'</div>':'')+
           '<button class="del" data-delrun="'+esc(r.id)+'">'+(confirmDel===r.id?'Tap again to delete':'Delete')+'</button></div>';
       });
@@ -511,10 +555,7 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
     }else if(!cloud.ready){
       h+='<div class="help">'+(cloud.loading?'Connecting…':'Couldn\'t reach the sync service. You can keep logging, it saves on this phone.')+'</div>';
     }else if(!cloud.uid){
-      h+='<div class="help">Sign in to sync your log across your devices.</div>'+
-        '<label class="field"><span>Email</span><input type="email" id="em" autocomplete="username" inputmode="email" autocapitalize="off"></label>'+
-        '<label class="field"><span>Password</span><input type="password" id="pw" autocomplete="current-password"></label>'+
-        '<button class="primary" id="signin">Sign in</button><div class="help" id="autherr" role="alert"></div>';
+      h+='<div class="help">Signed out.</div>';
     }else{
       h+='<div class="help">Signed in as <b>'+esc(cloud.email||"")+'</b>. Your workouts, runs and photos sync automatically.</div><button class="btn" id="signout">Sign out</button>';
     }
@@ -523,7 +564,7 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
       '<div class="rowbtns"><button class="btn" id="bk-copy">Copy backup</button><button class="btn" id="bk-dl">Download backup</button></div>'+
       '<label class="field"><span>Import: paste a backup here</span><textarea id="imp" rows="3" placeholder="Paste backup text">'+esc(importText)+'</textarea></label>'+
       '<div class="rowbtns"><button class="btn" id="bk-import">Import pasted text</button><button class="btn" id="bk-file">Import from file</button></div></section>';
-    h+='<div class="help" style="text-align:center">'+state.sessions.length+' workout'+(state.sessions.length===1?'':'s')+' · '+state.runs.length+' run'+(state.runs.length===1?'':'s')+'</div>';
+    h+='<div class="help" style="text-align:center">'+state.sessions.length+' workout'+(state.sessions.length===1?'':'s')+' · '+state.runs.length+' cardio session'+(state.runs.length===1?'':'s')+'</div>';
     main.innerHTML=h;
   }
 
@@ -542,6 +583,10 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
     if(t.id==="warm"){draft.warm=!draft.warm;saveDraft();t.textContent=draft.warm?"✓":"";$("#warmcard").classList.toggle("done",draft.warm);return}
     if(t.id==="finish"){finishWorkout();return}
     if(t.id==="saverun"){saveRun();return}
+    if(t.dataset.kind){
+      if(runDraft.act!==t.dataset.kind){var d0=runDraft;runDraft=newRunDraft(t.dataset.kind);runDraft.date=d0.date;saveRunDraft();confirmDel=null;render()}
+      return;
+    }
     if(t.dataset.type){runDraft.type=t.dataset.type;saveRunDraft();render();return}
     if(t.dataset.feel){var n=+t.dataset.feel;runDraft.feel=runDraft.feel===n?0:n;saveRunDraft();render();return}
     if(t.dataset.del||t.dataset.delrun){
@@ -549,18 +594,8 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
       if(confirmDel===id){
         if(isRun){state.runs=state.runs.filter(function(x){return x.id!==id});cw("runs",id,null)}
         else{state.sessions=state.sessions.filter(function(x){return x.id!==id});cw("sessions",id,null)}
-        confirmDel=null;saveLocal();render();toast(isRun?"Run deleted":"Workout deleted");
+        confirmDel=null;saveLocal();render();toast(isRun?"Entry deleted":"Workout deleted");
       }else{confirmDel=id;render()}
-      return;
-    }
-    if(t.id==="signin"){
-      var em=$("#em").value.trim(),pw=$("#pw").value,er=$("#autherr");
-      if(!em||!pw){er.textContent="Enter your email and password.";return}
-      t.disabled=true;er.textContent="";
-      firebase.auth().signInWithEmailAndPassword(em,pw).then(function(){toast("Signed in")},function(e){
-        t.disabled=false;
-        er.textContent=(e&&(e.code==="auth/invalid-credential"||e.code==="auth/wrong-password"||e.code==="auth/user-not-found"))?"Wrong email or password.":(e&&e.code==="auth/network-request-failed"?"No connection. Try again when you're online.":"Couldn't sign in. Try again.");
-      });
       return;
     }
     if(t.id==="signout"){firebase.auth().signOut();return}
@@ -608,7 +643,18 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
   draft=lsGet(K.draft);
   if(!draft||!draft.sets||EX.some(function(e){return !draft.sets[e.id]}))draft=newDraft();
   runDraft=lsGet(K.runDraft);
-  if(!runDraft||typeof runDraft!=="object")runDraft=newRunDraft();
+  if(!runDraft||typeof runDraft!=="object"||!ACTS[runDraft.act])runDraft=newRunDraft(runDraft&&runDraft.act);
+  if(ACTS[runDraft.act].types.indexOf(runDraft.type)<0)runDraft.type=ACTS[runDraft.act].defType;
+  $("#gateform").addEventListener("submit",function(ev){
+    ev.preventDefault();
+    var em=$("#gem").value.trim(),pw=$("#gpw").value,er=$("#gerr"),b=$("#gbtn");
+    if(!em||!pw){er.textContent="Enter your email and password.";return}
+    if(!cloud.ready){er.textContent=cloud.loading?"Still connecting. Try again in a moment.":"Can't reach sign-in. Check your connection and try again.";if(!cloud.loading)initCloud();return}
+    b.disabled=true;er.textContent="";
+    firebase.auth().signInWithEmailAndPassword(em,pw).then(function(){},function(e){b.disabled=false;er.textContent=authMsg(e)});
+  });
+  var hasCfg=!!(window.FIREBASE_CONFIG&&window.FIREBASE_CONFIG.apiKey);
+  if(hasCfg&&!lsGet(K.auth)){document.body.classList.add("locked");$("#gate").hidden=false}
   render();refreshStatus();initCloud();
   if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
 })();

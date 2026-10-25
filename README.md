@@ -35,5 +35,5 @@ Use **Account > Backup**. **Copy backup** on one device, then paste it into **Im
 ## Notes
 
 - Photos are shrunk and stored with your data.
-- Runs: distance, time, type, how it felt, notes. Pace is worked out for you. The pace chart has a dashed line at the pace needed for a sub 2:15 half marathon.
+- Cardio: switch between Run and Row. Log distance (km for runs, metres for rowing), time, type, how it felt and notes. Pace (or the 500 m split for rowing) is worked out for you. The run pace chart has a dashed line at the pace needed for a sub 2:15 half marathon.
 - To change the routine, edit the `EX` list near the top of the script in `index.html`.
