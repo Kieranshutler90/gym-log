@@ -932,8 +932,6 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
       h+='<label class="field"><span>Notes (optional)</span><textarea id="rnote" rows="2" placeholder="'+(act==="Row"?'Resistance, stroke rate, how it felt':act==="Cycle"?'Route, gears, resistance, how it felt':act==="Stairs"?'Level, how it felt':'Route, weather, legs, anything to remember')+'">'+esc(runDraft.note)+'</textarea></label>';
     }
     h+='<button class="primary" id="saverun" disabled>Save '+lc+'</button></section>';
-    h+='<section class="card"><h3>'+(act==="Stairs"?'Floors':'Kilometres')+' per week ('+lc+')</h3>'+weeklyChart(act)+'</section>';
-    h+='<section class="card"><h3>'+(act==="Row"?'Split trend (lower is faster)':HIGHER[act]?(act==="Stairs"?'Floors per minute trend (higher is faster)':'Speed trend (higher is faster)'):'Pace trend (lower is faster)')+'</h3>'+paceChart(act)+'</section>';
     main.innerHTML=h;updatePaceBox();
   }
 
@@ -997,24 +995,32 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
     var st=histStats(),h='<div class="seg" style="grid-template-columns:1fr 1fr"><button class="chip" data-hv="log" aria-pressed="'+(histView==="log")+'">Log</button><button class="chip" data-hv="rec" aria-pressed="'+(histView==="rec")+'">Records</button></div>';
     var s=sortedSessions();
     if(!s.length&&!state.runs.length){main.innerHTML=h+'<div class="empty">Nothing logged yet.<br>Finish a workout or log a run and it shows up here.</div>';return}
+    var chipsHtml='<div class="chips scrollrow hf">'+HF.map(function(f){return '<button class="chip" data-hf="'+f[0]+'" aria-pressed="'+(histFilter===f[0])+'">'+f[1]+'</button>'}).join('')+'</div>';
     if(histView==="rec"){
-      if(s.length){h+='<h3 class="subh">Strength</h3>';
+      h+=chipsHtml;
+      var showGym=histFilter==="all"||histFilter==="gym",anyOut=false;
+      if(showGym&&s.length){anyOut=true;h+='<h3 class="subh">Strength</h3>';
         EX.forEach(function(e){
           var r=st.rec[e.id];
           h+='<div class="card recrow"><div class="rl"><b>'+esc(e.name)+(r.isNew?' <span class="prb">PR</span>':'')+'</b><span class="last">'+(r.best!==null?esc(parseISO(r.date).toLocaleDateString('en-GB',{day:'numeric',month:'short'}))+(r.e1?' · 1RM '+r.e1+' kg':''):'No data yet')+'</span></div>'+sparkSvg(r.series)+'<div class="rb"><b>'+(r.best!==null?r.best:"–")+'</b><span>kg best</span></div></div>';
         });
       }
-      var cr=cardioRecs();
-      if(cr.length){h+='<h3 class="subh">Cardio</h3>';
+      var cr=cardioRecs().filter(function(c){return histFilter==="all"||c.act===histFilter});
+      if(cr.length){anyOut=true;h+='<h3 class="subh">Cardio</h3>';
         cr.forEach(function(c){
-          var A=ACTS[c.act];
+          var A=ACTS[c.act],lc=NOUN[c.act];
           h+='<div class="card recrow"><div class="rl"><b>'+esc(c.act)+(c.isNew?' <span class="prb">PR</span>':'')+'</b><span class="last">Longest '+esc(fmtDist(c.act,c.longest))+' · '+c.n+' logged</span></div>'+sparkSvg(c.series)+'<div class="rb"><b>'+fmtMetric(c.act,c.best.r.km,c.best.r.secs)+'</b><span>'+esc(A.per)+' best</span></div></div>';
+          if(ACTS[histFilter]){
+            h+='<section class="card"><h3>'+(histFilter==="Stairs"?'Floors':'Kilometres')+' per week ('+lc+')</h3>'+weeklyChart(histFilter)+'</section>';
+            h+='<section class="card"><h3>'+(histFilter==="Row"?'Split trend (lower is faster)':HIGHER[histFilter]?(histFilter==="Stairs"?'Floors per minute trend (higher is faster)':'Speed trend (higher is faster)'):'Pace trend (lower is faster)')+'</h3>'+paceChart(histFilter)+'</section>';
+          }
         });
       }
+      if(!anyOut)h+='<div class="empty">Nothing here yet.</div>';
       main.innerHTML=h;return;
     }
     h+=ribbonHtml();
-    h+='<div class="chips scrollrow hf">'+HF.map(function(f){return '<button class="chip" data-hf="'+f[0]+'" aria-pressed="'+(histFilter===f[0])+'">'+f[1]+'</button>'}).join('')+'</div>';
+    h+=chipsHtml;
     var feed=sortedAll().filter(function(it){return histFilter==="all"||(histFilter==="gym"?it.k==="s":it.k==="r"&&actOf(it.x)===histFilter)});
     if(!feed.length)h+='<div class="empty">Nothing here yet.</div>';
     feed.forEach(function(it){
