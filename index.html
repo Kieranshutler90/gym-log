@@ -272,6 +272,22 @@ body.navhide .tabs{transform:translateY(calc(100% + 40px));opacity:0;pointer-eve
 body.navhide #navhandle{opacity:1;pointer-events:auto}
 body.kb #navhandle{opacity:0;pointer-events:none}
 @media (prefers-reduced-motion:reduce){#navhandle{transition:none}}
+
+/* ---- Icon-only liquid glass dock that fades ---- */
+.tabs{height:58px;padding:0 10px;max-width:340px;gap:0;align-items:stretch;
+  background:linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.03)),rgba(18,20,24,.78);
+  -webkit-backdrop-filter:blur(26px) saturate(190%);backdrop-filter:blur(26px) saturate(190%);
+  border:0;border-top:1px solid rgba(220,235,255,.28);box-shadow:inset 0 1px 1px 0 rgba(255,255,255,.18),inset 0 -1px 0 0 rgba(255,255,255,.04),0 14px 36px -10px rgba(0,0,0,.7);
+  transition:opacity .45s ease,transform .45s cubic-bezier(.22,.8,.3,1)}
+.tab,.tab[aria-selected="true"]{background:transparent;border:0;box-shadow:none;border-radius:0;gap:5px;color:rgba(255,255,255,.42)}
+.tab svg{width:24px;height:24px}
+.tab span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.tab[aria-selected="true"]{color:#d4ff00;background:radial-gradient(circle closest-side at 50% 45%,rgba(212,255,0,.18) 0%,transparent 100%)}
+.tab[aria-selected="true"]::after{content:"";width:4px;height:4px;border-radius:50%;background:#d4ff00;box-shadow:0 0 8px #d4ff00}
+.tab[aria-selected="true"] svg{filter:drop-shadow(0 0 6px rgba(212,255,0,.45))}
+body.navhide .tabs,body.kb .tabs{transform:translateY(14px) scale(.94);opacity:0;pointer-events:none}
+#navhandle{transition:opacity .45s ease}
+.toast{bottom:calc(90px + env(safe-area-inset-bottom,0px))}
 </style>
 </head>
 <body>
@@ -280,10 +296,10 @@ body.kb #navhandle{opacity:0;pointer-events:none}
     <h1>Gym Log</h1>
     <div class="sub"><span>Workout A &amp; cardio</span><span aria-hidden="true">·</span><span class="sync"><i class="dot" id="dot"></i><span id="status">Saved on this phone</span></span></div>
     <div class="tabs" role="tablist" id="tabs">
-      <button class="tab" role="tab" data-tab="today" aria-selected="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg><span>Today</span></button>
-      <button class="tab" role="tab" data-tab="runs" aria-selected="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg><span>Cardio</span></button>
-      <button class="tab" role="tab" data-tab="hist" aria-selected="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>History</span></button>
-      <button class="tab" role="tab" data-tab="acct" aria-selected="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Account</span></button>
+      <button class="tab" role="tab" data-tab="today" aria-label="Today" aria-selected="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg><span>Today</span></button>
+      <button class="tab" role="tab" data-tab="runs" aria-label="Cardio" aria-selected="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg><span>Cardio</span></button>
+      <button class="tab" role="tab" data-tab="hist" aria-label="History" aria-selected="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>History</span></button>
+      <button class="tab" role="tab" data-tab="acct" aria-label="Account" aria-selected="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Account</span></button>
     </div>
   </header>
   <main id="main"></main>
