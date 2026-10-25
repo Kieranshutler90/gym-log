@@ -365,6 +365,9 @@ body.navhide .tabs,body.kb .tabs{transform:translateY(14px) scale(.94);opacity:0
 /* consistent dock position on short pages (iOS standalone) */
 html{min-height:100%}
 body{min-height:calc(100vh + 2px)}
+html,body{overflow-x:hidden;overscroll-behavior-x:none;max-width:100%}
+body{touch-action:pan-y}
+.scrollrow{touch-action:pan-x pan-y}
 input::placeholder,textarea::placeholder{color:rgba(255,255,255,.2)}
 
 /* compact header */
