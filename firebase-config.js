@@ -12,5 +12,5 @@ window.FIREBASE_CONFIG = {
 
 // Photo scan (optional). Paste the public reCAPTCHA site key from Firebase App Check here (see README, step 3).
 // Use "enterprise" instead of "v3" if you set App Check up with reCAPTCHA Enterprise.
-window.FIREBASE_APPCHECK_SITE_KEY = null;
-window.FIREBASE_APPCHECK_PROVIDER = "v3";
+window.FIREBASE_APPCHECK_SITE_KEY = "6LeaigAuAAAAAKZLcjJm7uup8dz354TV1MsuXeXS";
+window.FIREBASE_APPCHECK_PROVIDER = "enterprise";
