@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Gym Log</title>
-<meta name="theme-color" content="#070b0f">
+<meta name="theme-color" content="#060709">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -14,16 +14,16 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: one-column phone app. Sticky title bar with four tabs (Today / Runs / History / Account), set rows like a lifting logbook, simple SVG charts. */
 :root{
   --bg:#070b0f; --surface:rgba(255,255,255,.05); --ink:#f1f5f7; --muted:#8e9ba6; --line:rgba(255,255,255,.1);
-  --accent:#b6f43a; --accent-ink:#0a1006; --done:#b6f43a; --done-bg:rgba(182,244,58,.12); --danger:#ff7a66; --target:#b6f43a;
-  --glow:0 0 18px rgba(182,244,58,.45);
-  --ambient:radial-gradient(60% 40% at 85% 0%,rgba(24,120,140,.35),transparent 70%),radial-gradient(70% 45% at 10% 100%,rgba(20,150,110,.30),transparent 70%),radial-gradient(50% 30% at 100% 60%,rgba(40,90,180,.18),transparent 70%),#070b0f;
-  --display:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
-  --body:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --accent:#d4ff00; --accent-ink:#0a1006; --done:#d4ff00; --done-bg:rgba(212,255,0,.10); --danger:#ff7a66; --target:#ffffff;
+  --glow:0 0 0 transparent;
+  --ambient:#060709;
+  --display:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --body:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -195,6 +195,50 @@ input::placeholder,textarea::placeholder{color:#5f6c77;font-weight:500}
 #gate{background:var(--ambient)}
 .gatecard h1{font-size:40px}
 .del{color:var(--danger)}
+
+/* ---- Liquid glass v2: flat black, specular rims, lime only for status ---- */
+html,body{background:#060709}
+body{font-variant-numeric:tabular-nums lining-nums}
+body::before{display:none}
+h1{font-weight:800;letter-spacing:-.025em}
+.card,.stat,.tabs{background:rgba(255,255,255,.04);-webkit-backdrop-filter:blur(24px) saturate(180%);backdrop-filter:blur(24px) saturate(180%);
+  border:0;border-top:1px solid rgba(255,255,255,.18);border-left:1px solid rgba(255,255,255,.08);border-right:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.03);
+  box-shadow:inset 0 1px 1px 0 rgba(255,255,255,.15),0 12px 32px -8px rgba(0,0,0,.5)}
+.card,.stat{border-radius:24px}
+.tabs{border-radius:9999px;height:68px;padding:6px;gap:2px;max-width:420px;background:linear-gradient(rgba(255,255,255,.05),rgba(255,255,255,.05)),rgba(18,20,24,.88)}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:9999px;font:600 11px var(--body);color:rgba(255,255,255,.5);padding:0;border:1px solid transparent}
+.tab[aria-selected="true"]{background:rgba(212,255,0,.14);border-color:rgba(212,255,0,.35);color:#d4ff00;box-shadow:inset 0 1px 1px 0 rgba(255,255,255,.2);font-weight:700}
+label.l,.field span,.stat span,.card h3,.feelcap,th{text-transform:uppercase;font-size:.72rem;letter-spacing:.06em;color:rgba(255,255,255,.45);font-weight:600}
+.stat b{font-weight:800}
+.card h2{font-weight:700}
+.target{background:rgba(255,255,255,.08);color:#fff}
+input,textarea,select,.thumb{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);box-shadow:none}
+input:focus,textarea:focus,select:focus{border-color:rgba(212,255,0,.7);box-shadow:0 0 0 1px rgba(212,255,0,.7)}
+.setrow{padding:6px 6px 6px 0;margin:0 -6px;border-radius:20px;grid-template-columns:24px 1fr 1fr 48px}
+.setrow.active{box-shadow:0 0 0 1.5px #d4ff00;background:rgba(212,255,0,.03)}
+.setrow.active .n{color:#d4ff00}
+.setrow input{min-height:48px;font-weight:700}
+.setrow.done input{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.08);color:var(--ink)}
+.chk{border-color:rgba(255,255,255,.25);transition:transform .12s ease}
+.chk:active,.chip:active,.primary:active,.btn:active,.tab:active{transform:scale(.92)}
+.setrow.done .chk,.warm.done .chk{background:#d4ff00;border-color:#d4ff00;color:#0a1006;box-shadow:none}
+.btn{background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.25);color:var(--ink);box-shadow:none}
+.primary{background:#d4ff00;box-shadow:none}
+.chip{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.08);color:rgba(255,255,255,.6)}
+.chip[aria-pressed="true"],.seg .chip[aria-pressed="true"]{background:rgba(212,255,0,.14);border-color:rgba(212,255,0,.35);color:#d4ff00;box-shadow:inset 0 1px 1px 0 rgba(255,255,255,.2)}
+.seg{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);box-shadow:inset 0 1px 1px 0 rgba(255,255,255,.12)}
+.seg .chip{color:rgba(255,255,255,.5);min-height:44px}
+.chip{min-height:44px}
+.progress>i{box-shadow:none}
+.chart .bar{fill:rgba(255,255,255,.28)}
+.chart .bar.cur{fill:#d4ff00;filter:none}
+.chart .ln{filter:none;stroke:#fff}
+.chart .tg{stroke:#fff;stroke-opacity:.4}
+.chart .tgl{fill:rgba(255,255,255,.55)}
+.chart .pt.tm{fill:#060709}
+.toast{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14);box-shadow:0 12px 32px -8px rgba(0,0,0,.5);color:var(--ink)}
+#gate{background:#060709}
+@media (prefers-reduced-motion:reduce){.chk,.chip,.primary,.btn,.tab{transition:none}.chk:active,.chip:active,.primary:active,.btn:active,.tab:active{transform:none}}
 </style>
 </head>
 <body>
@@ -203,10 +247,10 @@ input::placeholder,textarea::placeholder{color:#5f6c77;font-weight:500}
     <h1>Gym Log</h1>
     <div class="sub"><span>Workout A &amp; cardio</span><span aria-hidden="true">·</span><span class="sync"><i class="dot" id="dot"></i><span id="status">Saved on this phone</span></span></div>
     <div class="tabs" role="tablist" id="tabs">
-      <button class="tab" role="tab" data-tab="today" aria-selected="true">Today</button>
-      <button class="tab" role="tab" data-tab="runs" aria-selected="false">Cardio</button>
-      <button class="tab" role="tab" data-tab="hist" aria-selected="false">History</button>
-      <button class="tab" role="tab" data-tab="acct" aria-selected="false">Account</button>
+      <button class="tab" role="tab" data-tab="today" aria-selected="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg><span>Today</span></button>
+      <button class="tab" role="tab" data-tab="runs" aria-selected="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg><span>Cardio</span></button>
+      <button class="tab" role="tab" data-tab="hist" aria-selected="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>History</span></button>
+      <button class="tab" role="tab" data-tab="acct" aria-selected="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Account</span></button>
     </div>
   </header>
   <main id="main"></main>
@@ -394,7 +438,10 @@ input::placeholder,textarea::placeholder{color:#5f6c77;font-weight:500}
     if(p)p.style.width=(c.t?100*c.n/c.t:0)+"%";
     if(l)l.textContent=c.n+" of "+c.t+" sets done";
     if(f)f.disabled=c.n===0;
+    var rows=document.querySelectorAll(".setrow"),found=false;
+    for(var k=0;k<rows.length;k++){var on=!found&&!rows[k].classList.contains("done");if(on)found=true;rows[k].classList.toggle("active",on)}
   }
+  function buzz(){try{if(navigator.vibrate)navigator.vibrate(15)}catch(e){}}
   function finishWorkout(){
     var c=doneCount();if(!c.n)return;
     var rec={id:uid(),date:draft.date,warm:draft.warm,note:draft.note.trim(),sets:{}};
@@ -747,7 +794,7 @@ input::placeholder,textarea::placeholder{color:#5f6c77;font-weight:500}
   });
   main.addEventListener("click",function(ev){
     var t=ev.target.closest("button");if(!t)return;
-    if(t.id==="warm"){draft.warm=!draft.warm;saveDraft();t.textContent=draft.warm?"✓":"";$("#warmcard").classList.toggle("done",draft.warm);return}
+    if(t.id==="warm"){draft.warm=!draft.warm;saveDraft();if(draft.warm)buzz();t.textContent=draft.warm?"✓":"";$("#warmcard").classList.toggle("done",draft.warm);return}
     if(t.id==="finish"){finishWorkout();return}
     if(t.id==="saverun"){saveRun();return}
     if(t.dataset.kind){
@@ -790,7 +837,7 @@ input::placeholder,textarea::placeholder{color:#5f6c77;font-weight:500}
     if(t.dataset.act==="add"){var arr=draft.sets[id2],l=arr[arr.length-1]||{kg:"",reps:""};arr.push({kg:l.kg,reps:l.reps,done:false});saveDraft();render();return}
     if(t.dataset.act==="done"){
       var row=t.closest(".setrow"),i=+row.dataset.i,s=draft.sets[id2][i];
-      s.done=!s.done;saveDraft();row.classList.toggle("done",s.done);t.textContent=s.done?"✓":"";updateProgress();
+      s.done=!s.done;saveDraft();row.classList.toggle("done",s.done);t.textContent=s.done?"✓":"";if(s.done)buzz();updateProgress();
     }
   });
   main.addEventListener("input",function(ev){
