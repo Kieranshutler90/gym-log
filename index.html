@@ -288,6 +288,7 @@ body.kb #navhandle{opacity:0;pointer-events:none}
 body.navhide .tabs,body.kb .tabs{transform:translateY(14px) scale(.94);opacity:0;pointer-events:none}
 #navhandle{transition:opacity .45s ease}
 .toast{bottom:calc(90px + env(safe-area-inset-bottom,0px))}
+#gate{align-items:flex-start;padding:0 20px;box-sizing:border-box}.gatecard{margin:auto}
 </style>
 </head>
 <body>
@@ -956,6 +957,12 @@ body.navhide .tabs,body.kb .tabs{transform:translateY(14px) scale(.94);opacity:0
   render();refreshStatus();initCloud();
   if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
 })();
+
+(function(){var g=document.getElementById("gate");if(!g)return;var vv=window.visualViewport;
+function fit(){if(vv){g.style.height=vv.height+"px";g.style.top=vv.offsetTop+"px";g.style.bottom="auto"}}
+function center(ev){setTimeout(function(){fit();if(ev&&ev.target&&ev.target.scrollIntoView)ev.target.scrollIntoView({block:"center",behavior:"smooth"})},300)}
+if(vv){vv.addEventListener("resize",fit);vv.addEventListener("scroll",fit)}
+g.addEventListener("focusin",center);g.addEventListener("focusout",function(){setTimeout(function(){if(!g.contains(document.activeElement)){g.style.height="";g.style.top="";g.style.bottom=""}},100)});})();
 </script>
 </body>
 </html>
