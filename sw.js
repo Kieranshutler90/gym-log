@@ -1,9 +1,5 @@
 // Simple offline support: network first, fall back to the last cached copy.
-<<<<<<< HEAD
-var CACHE = "gym-log-v34";
-=======
-var CACHE = "gym-log-v31";
->>>>>>> parent of 4f034fc (Make body the scroll container so dock position is identical on every tab)
+var CACHE = "gym-log-v37";
 var CORE = ["./", "index.html", "manifest.webmanifest", "firebase-config.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 
