@@ -372,12 +372,12 @@ input::placeholder,textarea::placeholder{color:rgba(255,255,255,.2)}
 .sub{display:none}
 header{padding:calc(14px + env(safe-area-inset-top,0px)) 0 0}
 header h1{font:800 30px var(--body);letter-spacing:-.025em;text-transform:none;display:flex;align-items:center;gap:10px}
-body[data-tab="today"] header{padding-top:calc(6px + env(safe-area-inset-top,0px))}
+body[data-tab="today"] header{padding-top:env(safe-area-inset-top,0px)}
 body[data-tab="today"] header h1{display:none}
 body[data-sync="warn"] header h1::after,body[data-sync="err"] header h1::after,body[data-sync="warn"] .th::after,body[data-sync="err"] .th::after{content:"";width:9px;height:9px;border-radius:50%;background:#ffb020;box-shadow:0 0 8px rgba(255,176,32,.6)}
 body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{background:#ff5c48}
 .th{margin:0;font:800 30px var(--body);letter-spacing:-.025em;display:flex;align-items:center;gap:10px}
-.todayhead{margin-top:2px}
+.todayhead{margin-top:0}
 .proginline{display:flex;align-items:center;gap:12px}
 .proginline .progress{flex:1}
 .proginline .pl{font:700 13.5px var(--body);color:rgba(255,255,255,.7);white-space:nowrap}
