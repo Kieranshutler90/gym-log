@@ -364,8 +364,8 @@ body.navhide #saverun,body.kb #saverun{bottom:14px}
 .sw[aria-checked="true"] i{transform:translateX(20px);background:#0a1006}
 
 /* consistent dock position on short pages (iOS standalone) */
-html{min-height:100%}
-body{min-height:calc(100vh + 2px)}
+html{height:100%;overflow:hidden}
+body{position:fixed;inset:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-y:none}
 input::placeholder,textarea::placeholder{color:rgba(255,255,255,.2)}
 
 /* compact header */
@@ -610,7 +610,7 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
     state.sessions=state.sessions.concat([rec]);
     saveLocal();cw("sessions",rec.id,rec);
     draft=newDraft();saveDraft();
-    tab="hist";render();window.scrollTo(0,0);toast("Workout saved");
+    tab="hist";render();document.body.scrollTop=0;toast("Workout saved");
   }
 
   /* ---------- photos ---------- */
@@ -980,7 +980,7 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
       while(arr.length<e.sets)arr.push(arr.length?{kg:arr[arr.length-1].kg,reps:arr[arr.length-1].reps,done:false}:{kg:"",reps:"",done:false});
       d.sets[e.id]=arr;
     });
-    draft=d;saveDraft();menuFor=null;confirmRep=false;tab="today";render();window.scrollTo(0,0);toast("Copied. Tick sets as you go.");
+    draft=d;saveDraft();menuFor=null;confirmRep=false;tab="today";render();document.body.scrollTop=0;toast("Copied. Tick sets as you go.");
   }
 
   var acctView="main";
@@ -1015,24 +1015,24 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
 
   /* ---------- events ---------- */
   (function(){
-    var last=window.pageYOffset||0,up=0,tick=false,idle=0;
+    var last=document.body.scrollTop||0,up=0,tick=false,idle=0;
     function onScroll(){
       tick=false;clearTimeout(idle);idle=setTimeout(function(){up=0},250);
-      var y=window.pageYOffset||0,max=Math.max(0,document.documentElement.scrollHeight-window.innerHeight),bd=document.body,d=y-last;
+      var y=document.body.scrollTop||0,max=Math.max(0,document.body.scrollHeight-document.body.clientHeight),bd=document.body,d=y-last;
       if(y<=0){bd.classList.remove("navhide");up=0;last=y;return}
       if(y>max){last=y;return}
       if(d>8){bd.classList.add("navhide");up=0;last=y}
       else if(d<0){up+=-d;if(up>220)bd.classList.remove("navhide");last=y}
       else if(d>0){up=0;last=y}
     }
-    window.addEventListener("scroll",function(){if(!tick){tick=true;requestAnimationFrame(onScroll)}},{passive:true});
+    document.body.addEventListener("scroll",function(){if(!tick){tick=true;requestAnimationFrame(onScroll)}},{passive:true});
     document.getElementById("navhandle").addEventListener("click",function(){document.body.classList.remove("navhide")});
   })();
   document.addEventListener("focusin",function(ev){var n=ev.target&&ev.target.tagName;if(n==="INPUT"||n==="TEXTAREA"||n==="SELECT")document.body.classList.add("kb")});
   document.addEventListener("focusout",function(){setTimeout(function(){var a=document.activeElement,n=a&&a.tagName;if(!(n==="INPUT"||n==="TEXTAREA"||n==="SELECT"))document.body.classList.remove("kb")},60)});
   $("#tabs").addEventListener("click",function(ev){
     var b=ev.target.closest(".tab");if(!b)return;
-    tab=b.dataset.tab;confirmDel=null;acctView="main";render();window.scrollTo(0,0);document.body.classList.remove("navhide");
+    tab=b.dataset.tab;confirmDel=null;acctView="main";render();document.body.scrollTop=0;document.body.classList.remove("navhide");
   });
   main.addEventListener("click",function(ev){
     var cd=ev.target.closest("[data-card]");
@@ -1063,7 +1063,7 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
       }else{confirmDel=id;render()}
       return;
     }
-    if(t.id==="opendata"){acctView="data";render();window.scrollTo(0,0);return}
+    if(t.id==="opendata"){acctView="data";render();document.body.scrollTop=0;return}
     if(t.id==="acctback"){acctView="main";render();return}
     if(t.id==="snd"){try{localStorage.setItem("gl-sound",soundOn()?"off":"on")}catch(e){}render();if(soundOn())pop();return}
     if(t.id==="signout"){firebase.auth().signOut();return}
