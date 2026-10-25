@@ -1,15 +1,11 @@
-// Paste your Firebase web app config here to switch on sync (see README.md, step 2).
-// Leave it as null to keep everything on this phone only.
-// These values are not secret. Your data is protected by your login and the Firestore rules.
-window.FIREBASE_CONFIG = null;
-
-/* Example of what it looks like once filled in:
+// Firebase web app config. These values are not secret.
+// Your data is protected by your login and the Firestore rules (see firestore.rules).
+// Set this back to null to keep everything on the phone only.
 window.FIREBASE_CONFIG = {
-  apiKey: "AIza...",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project",
-  storageBucket: "your-project.firebasestorage.app",
-  messagingSenderId: "1234567890",
-  appId: "1:1234567890:web:abcdef"
+  apiKey: "AIzaSyB7szk7S5MAf9xIrwwxoPUPJwztwHLiaTQ",
+  authDomain: "gym-log-2026.firebaseapp.com",
+  projectId: "gym-log-2026",
+  storageBucket: "gym-log-2026.firebasestorage.app",
+  messagingSenderId: "312241772846",
+  appId: "1:312241772846:web:179592c6e07f3af8f6c2bf"
 };
-*/
