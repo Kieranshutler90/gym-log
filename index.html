@@ -362,6 +362,11 @@ body.navhide #saverun,body.kb #saverun{bottom:14px}
 .sw i{position:absolute;top:2px;left:2px;width:28px;height:28px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.4);transition:transform .22s cubic-bezier(.22,.8,.3,1),background .2s}
 .sw[aria-checked="true"]{background:#d4ff00}
 .sw[aria-checked="true"] i{transform:translateX(20px);background:#0a1006}
+
+/* consistent dock position on short pages (iOS standalone) */
+html{min-height:100%}
+body{min-height:calc(100vh + 2px)}
+input::placeholder,textarea::placeholder{color:rgba(255,255,255,.2)}
 </style>
 </head>
 <body>
@@ -862,7 +867,7 @@ body.navhide #saverun,body.kb #saverun{bottom:14px}
     h+='<section class="card"><div class="logtop"><h2>Log a '+lc+'</h2><label class="datepill"><span id="dtxt">'+esc(dateLabel(runDraft.date))+'</span><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg><input type="date" id="rdate" aria-label="Date" value="'+esc(runDraft.date)+'"></label></div>';
     if(!WHERE[act]||runDraft.where===WHERE[act][1])h+='<button class="btn" id="scan"'+(scanning?' disabled':'')+'>'+(scanning?'Reading photo…':'Scan a photo of the '+(act==="Row"?'rowing machine':act==="Cycle"?'exercise bike':act==="Stairs"?'stair climber':'treadmill')+' screen')+'</button>';
     if(WHERE[act])h+='<div class="where">'+WHERE[act].map(function(w){return '<button class="chip" data-where="'+w+'" aria-pressed="'+(runDraft.where===w)+'">'+w+'</button>'}).join('')+'</div>';
-    h+='<div class="split"><label class="field"><span>'+A.distLabel+'</span><input type="number" id="rkm" inputmode="'+A.mode+'" step="'+A.step+'" min="0" placeholder="'+esc(phKm)+'" value="'+esc(runDraft.km)+'"></label>';
+    h+='<div class="split"><label class="field"><span>'+A.distLabel+'</span><input type="number" id="rkm" inputmode="'+A.mode+'" step="'+A.step+'" min="0" placeholder="'+esc(A.ph)+'" value="'+esc(runDraft.km)+'"></label>';
     h+='<label class="field"><span>Time</span><input type="text" id="rtime" inputmode="numeric" autocomplete="off" placeholder="'+A.mph+':00" value="'+esc(fmtDig(runDraft.tdig||""))+'"></label></div>';
     h+='<div class="paceline" id="pacebox">–</div>';
     var sum=runDraft.type+(runDraft.feel?' · Felt '+runDraft.feel+'/5':'')+(runDraft.note?' · Note':'');
@@ -979,7 +984,7 @@ body.navhide #saverun,body.kb #saverun{bottom:14px}
     else if(!cloud.ready){stt=cloud.loading?"Connecting…":"Offline, saving on this phone"}
     else if(!cloud.uid){stt="Signed out"}
     else{stt="Synced";dot="ok"}
-    h+='<div class="sgroup"><div class="srow prof"><div class="avatar">'+esc(ini)+'</div><div class="sl"><span>'+esc(nm)+'</span><small>'+(cloud.email?esc(cloud.email)+' · ':'')+'<i class="sdot '+dot+'"></i>'+stt+'</small></div>'+(cloud.uid?'<button class="so" id="signout">Sign out</button>':'')+'</div></div>';
+    h+='<div class="sgroup"><div class="srow prof"><div class="avatar">'+esc(ini)+'</div><div class="sl"><span>'+esc(nm)+'</span><small>'+(cloud.email?esc(cloud.email)+' ':'')+'<i class="sdot '+dot+'"></i>'+(dot==='ok'?'':stt)+'</small></div>'+(cloud.uid?'<button class="so" id="signout">Sign out</button>':'')+'</div></div>';
     h+='<div class="sgroup"><div class="srow"><div class="sl"><span>Tick sound</span><small>A tiny click when you tick a set</small></div><button class="sw" id="snd" role="switch" aria-checked="'+soundOn()+'" aria-label="Tick sound"><i></i></button></div>'+
        '<button class="srow" id="opendata"><div class="sl"><span>Data &amp; backup</span><small>Export, import and restore</small></div>'+chevR()+'</button></div>';
     h+='<div class="help" style="text-align:center">'+state.sessions.length+' workout'+(state.sessions.length===1?'':'s')+' · '+state.runs.length+' cardio session'+(state.runs.length===1?'':'s')+'</div>';
