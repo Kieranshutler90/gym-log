@@ -364,7 +364,7 @@ body.navhide .tabs,body.kb .tabs{transform:translateY(14px) scale(.94);opacity:0
 
 /* consistent dock position on short pages (iOS standalone) */
 html{height:100%;overflow:hidden}
-body{position:fixed;inset:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-y:none}
+body{position:fixed;top:0;left:0;right:0;bottom:-80px;padding-bottom:calc(220px + env(safe-area-inset-bottom,0px));overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-y:none}
 input::placeholder,textarea::placeholder{color:rgba(255,255,255,.2)}
 
 /* compact header */
