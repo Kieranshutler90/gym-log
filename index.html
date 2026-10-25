@@ -862,7 +862,7 @@ body.navhide .tabs,body.kb .tabs{transform:translateY(14px) scale(.94);opacity:0
       if(y<=0){bd.classList.remove("navhide");up=0;last=y;return}
       if(y>max){last=y;return}
       if(d>8){bd.classList.add("navhide");up=0;last=y}
-      else if(d<0){up+=-d;if(up>90)bd.classList.remove("navhide");last=y}
+      else if(d<0){up+=-d;if(up>220)bd.classList.remove("navhide");last=y}
       else if(d>0){up=0;last=y}
     }
     window.addEventListener("scroll",function(){if(!tick){tick=true;requestAnimationFrame(onScroll)}},{passive:true});
