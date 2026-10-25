@@ -1,5 +1,5 @@
 // Simple offline support: network first, fall back to the last cached copy.
-var CACHE = "gym-log-v20";
+var CACHE = "gym-log-v21";
 var CORE = ["./", "index.html", "manifest.webmanifest", "firebase-config.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 

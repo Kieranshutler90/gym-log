@@ -855,14 +855,15 @@ body.navhide .tabs,body.kb .tabs{transform:translateY(14px) scale(.94);opacity:0
 
   /* ---------- events ---------- */
   (function(){
-    var last=window.pageYOffset||0,tick=false;
+    var last=window.pageYOffset||0,up=0,tick=false;
     function onScroll(){
       tick=false;
-      var y=window.pageYOffset||0,max=Math.max(0,document.documentElement.scrollHeight-window.innerHeight),b=document.body;
-      if(y<=40||y>=max-4){b.classList.remove("navhide")}
-      else if(y>last+8){b.classList.add("navhide")}
-      else if(y<last-8){b.classList.remove("navhide")}
-      if(Math.abs(y-last)>8)last=y;
+      var y=window.pageYOffset||0,max=Math.max(0,document.documentElement.scrollHeight-window.innerHeight),bd=document.body,d=y-last;
+      if(y<=0){bd.classList.remove("navhide");up=0;last=y;return}
+      if(y>max){last=y;return}
+      if(d>8){bd.classList.add("navhide");up=0;last=y}
+      else if(d<0){up+=-d;if(up>45)bd.classList.remove("navhide");last=y}
+      else if(d>0){last=y}
     }
     window.addEventListener("scroll",function(){if(!tick){tick=true;requestAnimationFrame(onScroll)}},{passive:true});
     document.getElementById("navhandle").addEventListener("click",function(){document.body.classList.remove("navhide")});
