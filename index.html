@@ -367,12 +367,26 @@ body.navhide #saverun,body.kb #saverun{bottom:14px}
 html{min-height:100%}
 body{min-height:calc(100vh + 2px)}
 input::placeholder,textarea::placeholder{color:rgba(255,255,255,.2)}
+
+/* compact header */
+.sub{display:none}
+header{padding:calc(14px + env(safe-area-inset-top,0px)) 0 0}
+header h1{font:800 30px var(--body);letter-spacing:-.025em;text-transform:none;display:flex;align-items:center;gap:10px}
+body[data-tab="today"] header{padding-top:calc(6px + env(safe-area-inset-top,0px))}
+body[data-tab="today"] header h1{display:none}
+body[data-sync="warn"] header h1::after,body[data-sync="err"] header h1::after,body[data-sync="warn"] .th::after,body[data-sync="err"] .th::after{content:"";width:9px;height:9px;border-radius:50%;background:#ffb020;box-shadow:0 0 8px rgba(255,176,32,.6)}
+body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{background:#ff5c48}
+.th{margin:0;font:800 30px var(--body);letter-spacing:-.025em;display:flex;align-items:center;gap:10px}
+.todayhead{margin-top:2px}
+.proginline{display:flex;align-items:center;gap:12px}
+.proginline .progress{flex:1}
+.proginline .pl{font:700 13.5px var(--body);color:rgba(255,255,255,.7);white-space:nowrap}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>Gym Log</h1>
+    <h1 id="ttl">Workout A</h1>
     <div class="sub"><span>Workout A &amp; cardio</span><span aria-hidden="true">·</span><span class="sync"><i class="dot" id="dot"></i><span id="status">Saved on this phone</span></span></div>
     <div class="tabs" role="tablist" id="tabs">
       <button class="tab" role="tab" data-tab="today" aria-label="Today" aria-selected="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg><span>Today</span></button>
@@ -454,6 +468,7 @@ input::placeholder,textarea::placeholder{color:rgba(255,255,255,.2)}
     var d=$("#dot"),s=$("#status");
     if(d)d.className="dot"+(kind==="ok"?" ok":kind==="err"?" err":"");
     if(s)s.textContent=text;
+    document.body.dataset.sync=(cloud.configured&&kind!=="ok")?(kind==="err"?"err":"warn"):"";
   }
   function refreshStatus(){
     if(!cloud.configured)return setStatus("local","Saved on this phone");
@@ -565,7 +580,7 @@ input::placeholder,textarea::placeholder{color:rgba(255,255,255,.2)}
   function updateProgress(){
     var c=doneCount(),p=$("#prog"),l=$("#proglabel"),f=$("#finish");
     if(p)p.style.width=(c.t?100*c.n/c.t:0)+"%";
-    if(l)l.textContent=c.n+" of "+c.t+" sets done";
+    if(l)l.textContent=c.n+" / "+c.t+" sets";
     if(f)f.disabled=c.n===0;
     var rows=document.querySelectorAll(".setrow"),found=false;
     for(var k=0;k<rows.length;k++){var on=!found&&!rows[k].classList.contains("done");if(on)found=true;rows[k].classList.toggle("active",on)}
@@ -657,7 +672,7 @@ input::placeholder,textarea::placeholder{color:rgba(255,255,255,.2)}
   function fmtDig(g){if(!g)return "";var x=g.slice(-2).padStart(2,"0"),m=g.slice(-4,-2),h=g.slice(0,-4);return h?h+":"+m.padStart(2,"0")+":"+x:(m||"0")+":"+x}
   function runSecs(d){if(d.tdig===undefined)d.tdig=digFrom((num(d.h)||0)*3600+(num(d.m)||0)*60+(num(d.s)||0));var g=d.tdig||"";return (+g.slice(0,-4)||0)*3600+(+g.slice(-4,-2)||0)*60+(+g.slice(-2)||0)}
   var detailsOpen=false;
-  function dateLabel(iso){var t=todayISO();return iso===t?"Today":iso===addDays(t,-1)?"Yesterday":fmtDate(iso)}
+  function dateLabel(iso){var t=todayISO();return iso===t?"Today":iso===addDays(t,-1)?"Yesterday":parseISO(iso).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}
   function enteredKm(d){var v=num(d.km);if(!(v>0))return 0;return d.act==="Row"?v/1000:v}
   function sortedRuns(act){return state.runs.filter(function(r){return actOf(r)===act}).sort(function(a,b){return a.date===b.date?(a.id<b.id?1:-1):(a.date<b.date?1:-1)})}
   function updatePaceBox(){
@@ -836,8 +851,8 @@ input::placeholder,textarea::placeholder{color:rgba(255,255,255,.2)}
 
   /* ---------- rendering ---------- */
   function renderToday(){
-    var h='<div class="datebar"><label class="l" for="date">Session date</label><input type="date" id="date" value="'+esc(draft.date)+'"></div>';
-    h+='<div><div class="progress"><i id="prog"></i></div><div class="last" id="proglabel" style="margin-top:6px"></div></div>';
+    var h='<div class="logtop todayhead"><h1 class="th">Workout A</h1><label class="datepill"><span id="dtxt2">'+esc(dateLabel(draft.date))+'</span><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg><input type="date" id="date" aria-label="Session date" value="'+esc(draft.date)+'"></label></div>';
+    h+='<div class="proginline"><div class="progress"><i id="prog"></i></div><span class="pl" id="proglabel"></span></div>';
     h+='<div class="card warm'+(draft.warm?' done':'')+'" id="warmcard"><button class="chk" id="warm" aria-label="Warm-up done" style="width:52px">'+(draft.warm?'✓':'')+'</button><div><h2>Warm-up</h2><div class="last">5 min treadmill or bike, easy</div></div></div>';
     EX.forEach(function(e){
       var last=lastFor(e.id),ph=photos[e.id];
@@ -993,6 +1008,8 @@ input::placeholder,textarea::placeholder{color:rgba(255,255,255,.2)}
 
   function render(){
     Array.prototype.forEach.call(document.querySelectorAll(".tab"),function(b){b.setAttribute("aria-selected",b.dataset.tab===tab)});
+    var tt=$("#ttl");if(tt)tt.textContent=tab==="runs"?"Cardio":tab==="hist"?"History":tab==="acct"?"Account":"Workout A";
+    document.body.dataset.tab=tab;
     if(tab==="today")renderToday();else if(tab==="runs")renderRuns();else if(tab==="hist")renderHist();else renderAcct();
   }
 
@@ -1079,7 +1096,7 @@ input::placeholder,textarea::placeholder{color:rgba(255,255,255,.2)}
   main.addEventListener("input",function(ev){
     var el=ev.target;
     if(el.id==="note"){draft.note=el.value;saveDraft();return}
-    if(el.id==="date"){if(el.value){draft.date=el.value;saveDraft()}return}
+    if(el.id==="date"){if(el.value){draft.date=el.value;saveDraft();var d2=$("#dtxt2");if(d2)d2.textContent=dateLabel(el.value)}return}
     if(el.id==="imp"){importText=el.value;return}
     if(el.id==="rtime"){var g=el.value.replace(/\D/g,"").replace(/^0+/,"").slice(0,6);runDraft.tdig=g;el.value=fmtDig(g);saveRunDraft();updatePaceBox();return}
     var rmap={rdate:"date",rkm:"km",rnote:"note"};
