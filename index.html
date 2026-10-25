@@ -4,8 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Gym Log</title>
-<meta name="theme-color" content="#eceff2" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#101417" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#070b0f">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -15,21 +14,17 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <style>
 /* Layout: one-column phone app. Sticky title bar with four tabs (Today / Runs / History / Account), set rows like a lifting logbook, simple SVG charts. */
 :root{
-  --bg:#eceff2; --surface:#ffffff; --ink:#15191e; --muted:#5d6874; --line:#d3d9df;
-  --accent:#2a5f8f; --accent-ink:#ffffff; --done:#1f7a4d; --done-bg:#e1f1e8; --danger:#b3321f; --target:#b3541f;
-  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
-  --body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
-  color-scheme:light;
-}
-@media (prefers-color-scheme: dark){
-  :root{
-    --bg:#101417; --surface:#192026; --ink:#eaeef2; --muted:#93a0ac; --line:#2c353d;
-    --accent:#6fb1e6; --accent-ink:#0c1a26; --done:#6fd3a0; --done-bg:#16352a; --danger:#ff8a75; --target:#f0a36b; color-scheme:dark;
-  }
+  --bg:#070b0f; --surface:rgba(255,255,255,.05); --ink:#f1f5f7; --muted:#8e9ba6; --line:rgba(255,255,255,.1);
+  --accent:#b6f43a; --accent-ink:#0a1006; --done:#b6f43a; --done-bg:rgba(182,244,58,.12); --danger:#ff7a66; --target:#b6f43a;
+  --glow:0 0 18px rgba(182,244,58,.45);
+  --ambient:radial-gradient(60% 40% at 85% 0%,rgba(24,120,140,.35),transparent 70%),radial-gradient(70% 45% at 10% 100%,rgba(20,150,110,.30),transparent 70%),radial-gradient(50% 30% at 100% 60%,rgba(40,90,180,.18),transparent 70%),#070b0f;
+  --display:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --body:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  color-scheme:dark;
 }
 *{box-sizing:border-box}
 html,body{margin:0}
@@ -140,6 +135,66 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .seg .chip{border-radius:8px;font:700 20px var(--display);letter-spacing:.06em;text-transform:uppercase}
 @media (prefers-reduced-motion:reduce){.progress>i{transition:none}}
+
+/* ---- Glow theme: glass cards, lime accent, floating nav ---- */
+html{background:#070b0f}
+body{background:transparent;padding-bottom:calc(120px + env(safe-area-inset-bottom,0px))}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--ambient);pointer-events:none}
+header{position:static;background:transparent;border-bottom:0;padding:calc(18px + env(safe-area-inset-top,0px)) 0 4px}
+h1{font-weight:700;font-size:32px;letter-spacing:-.02em;text-transform:none}
+.sub{font-weight:500}
+.tabs{position:fixed;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));max-width:528px;margin:0 auto;z-index:15;
+  height:66px;padding:7px;gap:4px;border-radius:33px;background:linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.03)),rgba(10,15,20,.88);border:1px solid rgba(255,255,255,.14);
+  -webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);box-shadow:0 12px 32px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.12)}
+.tab{border:0;background:transparent;color:var(--muted);border-radius:26px;text-transform:none;letter-spacing:0;font:600 14px var(--body);min-height:0}
+.tab[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);box-shadow:var(--glow);font-weight:700}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{gap:14px}
+input,textarea,select{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:10px 12px;color:var(--ink);font-weight:600}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),var(--glow)}
+input::placeholder,textarea::placeholder{color:#5f6c77;font-weight:500}
+.card,.stat{background:linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.025));border:1px solid rgba(255,255,255,.1);border-radius:22px;
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 10px 30px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.08)}
+.card{padding:16px;gap:12px}
+.card h2{font-weight:700;font-size:19px;letter-spacing:-.01em;text-transform:none}
+.card h3{letter-spacing:.06em}
+.stat{padding:14px 12px}
+.stat b{font:700 28px/1 var(--display);letter-spacing:-.02em}
+.stat span{text-transform:none;letter-spacing:0;font-size:12px;font-weight:500}
+.target{color:var(--accent);border:0;background:rgba(182,244,58,.12);border-radius:12px;padding:5px 10px}
+.thumb{border-radius:16px;border:1px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.05)}
+.setrow{grid-template-columns:24px 1fr 1fr 48px}
+.setrow .n{font:600 14px var(--body)}
+.chk{width:48px;min-height:48px;height:48px;border-radius:50%;border:2px solid rgba(255,255,255,.2);background:transparent;justify-self:center;font:700 20px var(--body)}
+.setrow.done .chk,.warm.done .chk{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);box-shadow:var(--glow)}
+.setrow.done input{background:rgba(182,244,58,.12);border-color:rgba(182,244,58,.5);color:var(--accent)}
+.warm .chk{width:48px}
+.ghost{border:1px dashed rgba(255,255,255,.22);border-radius:14px;color:var(--muted)}
+.btn{background:rgba(255,255,255,.06);border:1px dashed rgba(255,255,255,.25);border-radius:16px;color:var(--accent);min-height:48px}
+.primary{min-height:54px;border-radius:27px;background:var(--accent);color:var(--accent-ink);font:700 16px var(--body);letter-spacing:.02em;text-transform:none;box-shadow:var(--glow)}
+.primary:disabled{opacity:.35;box-shadow:none}
+.chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:22px}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);box-shadow:var(--glow);font-weight:700}
+.seg{grid-template-columns:repeat(4,1fr);gap:4px;padding:4px;border-radius:26px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+.seg .chip{border:0;background:transparent;border-radius:22px;font:600 14px var(--body);letter-spacing:0;text-transform:none;padding:0;color:var(--muted)}
+.seg .chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);box-shadow:var(--glow);font-weight:700}
+.feel .chip{border-radius:14px;font:700 16px var(--body)}
+.pacebox b{font:700 26px var(--display);letter-spacing:-.02em}
+.runhead b,.sess-head b{font:700 17px var(--display);letter-spacing:-.01em;text-transform:none}
+.tag{border:0;background:rgba(255,255,255,.08);border-radius:8px;padding:3px 8px;text-transform:none;letter-spacing:0;font-size:12px}
+.progress{height:8px;background:rgba(255,255,255,.1);border-radius:4px}
+.progress>i{background:var(--accent);box-shadow:var(--glow)}
+.chart .bar{fill:rgba(182,244,58,.4)}
+.chart .bar.cur{fill:var(--accent);filter:drop-shadow(0 0 6px rgba(182,244,58,.6))}
+.chart .ln{stroke:#fff;stroke-width:2.5;filter:drop-shadow(0 0 5px rgba(182,244,58,.55))}
+.chart .pt{fill:#fff;stroke:none}
+.chart .pt.tm{fill:#070b0f;stroke:#fff;stroke-width:2}
+.chart .tg{stroke-opacity:.7}
+.toast{background:rgba(20,28,34,.92);color:var(--ink);border:1px solid rgba(182,244,58,.5);border-radius:16px;box-shadow:var(--glow);bottom:calc(98px + env(safe-area-inset-bottom,0px));-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.lb button{border-radius:22px}
+#gate{background:var(--ambient)}
+.gatecard h1{font-size:40px}
+.del{color:var(--danger)}
 </style>
 </head>
 <body>
