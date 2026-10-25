@@ -391,6 +391,27 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
 .lastrun{font:500 13.5px var(--body);color:rgba(255,255,255,.6)}
 .lastrun b{color:#f5f6f7;font-weight:700}
 .lastrun span{color:rgba(255,255,255,.4);margin-left:4px}
+
+.rowbtns{display:flex;gap:8px}
+.rowbtns .btn{flex:1;border-radius:9999px}
+.btn.dng{color:#ff7a66}
+.exlist{gap:0}
+.exrow{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.05);display:flex;flex-direction:column;gap:10px}
+.exrow:last-child{border-bottom:0}
+.ex1{display:flex;align-items:center;gap:8px}
+.exname{flex:1;min-width:0;font:700 16px var(--body)}
+.exmv{display:flex;gap:2px;flex:none}
+.exmv button{width:36px;height:40px;border:0;border-radius:12px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);font-size:12px}
+.exmv button:disabled{opacity:.25}
+.exmv .x{color:#ff7a66}
+.ex2{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.stepper{display:flex;align-items:center;gap:6px;border-radius:9999px;background:rgba(255,255,255,.06);padding:3px}
+.stepper button{width:40px;height:36px;border:0;border-radius:9999px;background:rgba(255,255,255,.08);color:#f5f6f7;font:700 20px var(--body);padding:0}
+.stepper span{min-width:62px;text-align:center;font:500 14px var(--body);color:rgba(255,255,255,.65)}
+.stepper b{color:#f5f6f7;font-weight:800}
+.exrange{display:flex;align-items:center;gap:8px;flex:none}
+.exrange span{font:600 12px var(--body);letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.45)}
+.exrange input{width:84px;text-align:center;font:700 15px var(--body);min-height:40px}
 </style>
 </head>
 <body>
@@ -437,7 +458,7 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
   ];
   var TARGET_SECS_PER_KM=8100/21.0975; // sub 2:15 half marathon
   var K={data:"gl-data-v2",photos:"gl-photos-v2",draft:"gl-draft-v2",runDraft:"gl-rundraft-v2",auth:"gl-auth-v1"};
-  var state={sessions:[],runs:[]}, photos={}, draft=null, runDraft=null, tab="today";
+  var state={sessions:[],runs:[],routines:[]}, photos={}, draft=null, runDraft=null, tab="today";
   var confirmDel=null, pickFor=null, importText="";
   var cloud={ready:false,uid:null,email:null,db:null,unsubs:[],err:null,configured:false,loading:false};
   var $=function(s){return document.querySelector(s)};
@@ -466,7 +487,7 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
 
   /* ---------- persistence ---------- */
   function saveLocal(){
-    var ok=lsSet(K.data,{sessions:state.sessions,runs:state.runs});
+    var ok=lsSet(K.data,{sessions:state.sessions,runs:state.runs,routines:state.routines});
     var ok2=lsSet(K.photos,photos);
     if(!ok||!ok2)toast("Phone storage is full. Remove a photo or sync to the cloud.");
   }
@@ -540,6 +561,11 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
       var map={};snap.docs.forEach(function(d){var o=d.data();map[o.id||d.id]=o});
       if(first)state.runs.forEach(function(x){if(!map[x.id]){map[x.id]=x;cw("runs",x.id,x)}});
       state.runs=Object.keys(map).map(function(k){return map[k]});
+    });
+    listen("routines",function(snap,first){
+      var map={};snap.docs.forEach(function(d){var o=d.data();map[o.id||d.id]=o});
+      if(first)state.routines.forEach(function(x){if(!map[x.id]){map[x.id]=x;cw("routines",x.id,x)}});
+      state.routines=Object.keys(map).map(function(k){return map[k]});
     });
     listen("photos",function(snap,first){
       var map={};snap.docs.forEach(function(d){var o=d.data();if(o&&o.data)map[d.id]=o.data});
@@ -839,7 +865,7 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
   });
 
   /* ---------- import / export ---------- */
-  function backupJSON(){return JSON.stringify({app:"gym-log",v:2,sessions:state.sessions,runs:state.runs,photos:photos})}
+  function backupJSON(){return JSON.stringify({app:"gym-log",v:3,sessions:state.sessions,runs:state.runs,routines:state.routines,photos:photos})}
   function importData(text){
     var o;
     try{o=JSON.parse(text)}catch(e){toast("That doesn't look like a backup");return}
@@ -848,6 +874,7 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
     var haveS={},haveR={};
     state.sessions.forEach(function(x){haveS[x.id]=1});state.runs.forEach(function(x){haveR[x.id]=1});
     (o.sessions||[]).forEach(function(x){if(x&&x.id&&x.date&&x.sets&&!haveS[x.id]){state.sessions.push(x);haveS[x.id]=1;addS++;cw("sessions",x.id,x)}});
+    (o.routines||[]).forEach(function(x){if(x&&x.id&&x.name&&Array.isArray(x.ex)&&!state.routines.some(function(z){return z.id===x.id})){state.routines.push(x);cw("routines",x.id,x)}});
     (o.runs||[]).forEach(function(x){if(x&&x.id&&x.date&&x.km>0&&!haveR[x.id]){state.runs.push(x);haveR[x.id]=1;addR++;cw("runs",x.id,x)}});
     var ph=o.photos&&typeof o.photos==="object"?o.photos:{};
     Object.keys(ph).forEach(function(k){if(typeof ph[k]==="string"&&ph[k].indexOf("data:image/")===0&&!photos[k]){photos[k]=ph[k];addP++;cw("photos",k,{data:ph[k]})}});
@@ -1024,10 +1051,73 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
     draft=d;saveDraft();menuFor=null;confirmRep=false;tab="today";render();window.scrollTo(0,0);toast("Copied. Tick sets as you go.");
   }
 
-  var acctView="main";
+  var acctView="main",routineId=null;
   function chevR(){return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>'}
+  /* ---------- routines (step 1: editor) ---------- */
+  function slug(n){return String(n).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,24)||"exercise"}
+  function knownEx(){
+    var m={};EX.forEach(function(e){m[e.name.toLowerCase()]=e.id});
+    state.routines.forEach(function(r){r.ex.forEach(function(e){if(e.name&&!m[e.name.toLowerCase()])m[e.name.toLowerCase()]=e.id})});
+    return m;
+  }
+  function saveRoutine(r){r.updated=Date.now();saveLocal();cw("routines",r.id,r)}
+  function nextRoutineName(){
+    var used={"Workout A":1};state.routines.forEach(function(r){used[r.name]=1});
+    for(var i=1;i<26;i++){var n="Workout "+String.fromCharCode(65+i);if(!used[n])return n}
+    return "New workout";
+  }
+  function curRoutine(){return state.routines.filter(function(r){return r.id===routineId})[0]}
+  function blankEx(){return {id:"x-"+uid(),name:"",sets:3,range:"10–12"}}
+  function tidyRoutine(){var r=curRoutine();if(!r)return;var n=r.ex.length;r.ex=r.ex.filter(function(e){return e.name&&e.name.trim()});if(!r.name.trim())r.name=nextRoutineName();saveRoutine(r)}
+  function renderRoutines(){
+    var h="",r;
+    if(acctView==="routines"){
+      h+='<button class="backrow" id="acctback"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Account</button><h2 class="sh">Workouts</h2>';
+      h+='<div class="sgroup"><div class="srow"><div class="sl"><span>Workout A</span><small>Your current routine · '+EX.length+' exercises · built in</small></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>';
+      state.routines.forEach(function(x){h+='<button class="srow" data-ra="open" data-rid="'+esc(x.id)+'"><div class="sl"><span>'+esc(x.name)+'</span><small>'+x.ex.length+' exercise'+(x.ex.length===1?'':'s')+'</small></div>'+chevR()+'</button>'});
+      h+='</div><div class="rowbtns"><button class="btn" data-ra="new">+ New routine</button><button class="btn" data-ra="copyA">+ Copy of Workout A</button></div>';
+      h+='<div class="help">Workout A stays exactly as it is. New routines show up in the Workout tab picker in the next update.</div>';
+      main.innerHTML=h;return;
+    }
+    r=curRoutine();if(!r){acctView="routines";return renderRoutines()}
+    h+='<button class="backrow" data-ra="back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Workouts</button>';
+    h+='<label class="field"><span>Routine name</span><input type="text" id="rname" maxlength="30" value="'+esc(r.name)+'"></label>';
+    var lib=knownEx();h+='<datalist id="exlib">'+Object.keys(lib).map(function(k){var nm=k.replace(/\b\w/g,function(c){return c.toUpperCase()});return '<option value="'+esc(nm)+'">'}).join('')+'</datalist>';
+    h+='<div class="sgroup exlist">';
+    r.ex.forEach(function(e,i){
+      h+='<div class="exrow"><div class="ex1"><input type="text" class="exname" data-rf="name" data-i="'+i+'" list="exlib" placeholder="Exercise name" maxlength="40" value="'+esc(e.name)+'" aria-label="Exercise name"><div class="exmv"><button data-ra="up" data-i="'+i+'" aria-label="Move up"'+(i===0?' disabled':'')+'>▲</button><button data-ra="dn" data-i="'+i+'" aria-label="Move down"'+(i===r.ex.length-1?' disabled':'')+'>▼</button><button class="x" data-ra="rm" data-i="'+i+'" aria-label="Remove exercise">✕</button></div></div>'+
+        '<div class="ex2"><div class="stepper"><button data-ra="sm" data-i="'+i+'" aria-label="Fewer sets">−</button><span><b>'+e.sets+'</b> sets</span><button data-ra="sp" data-i="'+i+'" aria-label="More sets">+</button></div><label class="exrange"><span>Reps</span><input type="text" data-rf="range" data-i="'+i+'" maxlength="8" value="'+esc(e.range)+'" placeholder="10–12" aria-label="Rep range"></label></div></div>';
+    });
+    if(!r.ex.length)h+='<div class="help" style="padding:16px">No exercises yet. Add your first one below.</div>';
+    h+='</div><button class="btn" data-ra="add">+ Add exercise</button>';
+    h+='<div class="rowbtns"><button class="btn" data-ra="dup">Duplicate</button><button class="btn dng" data-ra="del">'+(confirmDel==="r:"+r.id?'Tap again to delete':'Delete routine')+'</button></div>';
+    main.innerHTML=h;
+  }
+  function routineAction(t){
+    var a=t.dataset.ra,i=+t.dataset.i,r=curRoutine();
+    if(a==="open"){routineId=t.dataset.rid;acctView="routine";confirmDel=null;render();document.body.scrollTop=0;window.scrollTo(0,0);return}
+    if(a==="new"||a==="copyA"){
+      var nr={id:uid(),name:nextRoutineName(),ex:a==="copyA"?EX.map(function(e){return {id:e.id,name:e.name,sets:e.sets,range:e.range}}):[blankEx()],updated:Date.now()};
+      state.routines.push(nr);saveRoutine(nr);routineId=nr.id;acctView="routine";render();window.scrollTo(0,0);return;
+    }
+    if(!r)return;
+    if(a==="back"){tidyRoutine();acctView="routines";routineId=null;confirmDel=null;render();return}
+    if(a==="add"){r.ex.push(blankEx());saveRoutine(r);render();var ins=document.querySelectorAll(".exname");if(ins.length)ins[ins.length-1].focus();return}
+    if(a==="rm"){r.ex.splice(i,1);saveRoutine(r);render();return}
+    if(a==="up"&&i>0){var x=r.ex[i];r.ex[i]=r.ex[i-1];r.ex[i-1]=x;saveRoutine(r);render();return}
+    if(a==="dn"&&i<r.ex.length-1){var y=r.ex[i];r.ex[i]=r.ex[i+1];r.ex[i+1]=y;saveRoutine(r);render();return}
+    if(a==="sm"){r.ex[i].sets=Math.max(1,r.ex[i].sets-1);saveRoutine(r);render();return}
+    if(a==="sp"){r.ex[i].sets=Math.min(10,r.ex[i].sets+1);saveRoutine(r);render();return}
+    if(a==="dup"){tidyRoutine();var c={id:uid(),name:nextRoutineName(),ex:r.ex.map(function(e){return {id:e.id,name:e.name,sets:e.sets,range:e.range}}),updated:Date.now()};state.routines.push(c);saveRoutine(c);routineId=c.id;render();toast("Duplicated as "+c.name);return}
+    if(a==="del"){
+      if(confirmDel==="r:"+r.id){state.routines=state.routines.filter(function(z){return z.id!==r.id});saveLocal();cw("routines",r.id,null);routineId=null;acctView="routines";confirmDel=null;render();toast("Routine deleted")}
+      else{confirmDel="r:"+r.id;render()}
+    }
+  }
+
   function renderAcct(){
     var h="";
+    if(acctView==="routines"||acctView==="routine")return renderRoutines();
     if(acctView==="data"){
       h+='<button class="backrow" id="acctback"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Account</button><h2 class="sh">Data &amp; backup</h2>';
       h+='<div class="sgroup"><button class="srow" id="bk-copy"><div class="sl"><span>Copy backup</span><small>Puts everything on your clipboard</small></div>'+chevR()+'</button><button class="srow" id="bk-dl"><div class="sl"><span>Download backup</span><small>Saves a file you can keep</small></div>'+chevR()+'</button><button class="srow" id="bk-file"><div class="sl"><span>Import from file</span><small>Adds anything missing, never overwrites</small></div>'+chevR()+'</button></div>';
@@ -1042,6 +1132,7 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
     else{stt="Synced";dot="ok"}
     h+='<div class="sgroup"><div class="srow prof"><div class="avatar">'+esc(ini)+'</div><div class="sl"><span>'+esc(nm)+'</span><small>'+(cloud.email?esc(cloud.email)+' ':'')+'<i class="sdot '+dot+'"></i>'+(dot==='ok'?'':stt)+'</small></div>'+(cloud.uid?'<button class="so" id="signout">Sign out</button>':'')+'</div></div>';
     h+='<div class="sgroup"><div class="srow"><div class="sl"><span>Tick sound</span><small>A tiny click when you tick a set</small></div><button class="sw" id="snd" role="switch" aria-checked="'+soundOn()+'" aria-label="Tick sound"><i></i></button></div>'+
+       '<button class="srow" id="openroutines"><div class="sl"><span>Workouts</span><small>'+(state.routines.length+1)+' routine'+(state.routines.length?'s':'')+' · create and edit</small></div>'+chevR()+'</button>'+
        '<button class="srow" id="opendata"><div class="sl"><span>Data &amp; backup</span><small>Export, import and restore</small></div>'+chevR()+'</button></div>';
     h+='<div class="help" style="text-align:center">'+state.sessions.length+' workout'+(state.sessions.length===1?'':'s')+' · '+state.runs.length+' cardio session'+(state.runs.length===1?'':'s')+'</div>';
     main.innerHTML=h;
@@ -1105,8 +1196,10 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
       }else{confirmDel=id;render()}
       return;
     }
+    if(t.dataset.ra){routineAction(t);return}
+    if(t.id==="openroutines"){acctView="routines";render();window.scrollTo(0,0);return}
     if(t.id==="opendata"){acctView="data";render();window.scrollTo(0,0);return}
-    if(t.id==="acctback"){acctView="main";render();return}
+    if(t.id==="acctback"){acctView=(acctView==="data"||acctView==="routines")?"main":"routines";render();return}
     if(t.id==="snd"){try{localStorage.setItem("gl-sound",soundOn()?"off":"on")}catch(e){}render();if(soundOn())pop();return}
     if(t.id==="signout"){firebase.auth().signOut();return}
     if(t.id==="bk-copy"){
@@ -1135,11 +1228,14 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
     }
   });
   ["change","keyup","blur"].forEach(function(n){main.addEventListener(n,function(ev){if(ev.target&&ev.target.id==="rtime"&&n==="keyup"){return}updatePaceBox()},true)});
+  main.addEventListener("change",function(ev){var el=ev.target;if(el.dataset&&el.dataset.rf==="name"){var r3=curRoutine();if(r3){var ex=r3.ex[+el.dataset.i],m=knownEx(),k=el.value.trim().toLowerCase();if(ex&&m[k]){ex.id=m[k];saveRoutine(r3)}}}});
   main.addEventListener("input",function(ev){
     var el=ev.target;
     if(el.id==="note"){draft.note=el.value;saveDraft();return}
     if(el.id==="date"){if(el.value){draft.date=el.value;saveDraft();var d2=$("#dtxt2");if(d2)d2.textContent=dateLabel(el.value)}return}
     if(el.id==="imp"){importText=el.value;return}
+    if(el.id==="rname"){var rr=curRoutine();if(rr){rr.name=el.value;saveRoutine(rr)}return}
+    if(el.dataset.rf){var r2=curRoutine();if(r2){var ex=r2.ex[+el.dataset.i];if(ex){ex[el.dataset.rf]=el.value;saveRoutine(r2)}}return}
     if(el.id==="rtime"){var g=el.value.replace(/\D/g,"").replace(/^0+/,"").slice(0,6);runDraft.tdig=g;el.value=fmtDig(g);saveRunDraft();updatePaceBox();return}
     var rmap={rdate:"date",rkm:"km",rnote:"note"};
     if(rmap[el.id]){if(el.id==="rdate"&&!el.value)return;runDraft[rmap[el.id]]=el.value;saveRunDraft();if(el.id==="rdate"){var dt=$("#dtxt");if(dt)dt.textContent=dateLabel(el.value)}updatePaceBox();return}
@@ -1150,7 +1246,7 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
   });
 
   /* ---------- start ---------- */
-  var cached=lsGet(K.data);if(cached){state.sessions=cached.sessions||[];state.runs=cached.runs||[]}
+  var cached=lsGet(K.data);if(cached){state.sessions=cached.sessions||[];state.runs=cached.runs||[];state.routines=cached.routines||[]}
   var cp=lsGet(K.photos);if(cp&&typeof cp==="object")photos=cp;
   draft=lsGet(K.draft);
   if(!draft||!draft.sets||EX.some(function(e){return !draft.sets[e.id]}))draft=newDraft();
