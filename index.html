@@ -635,9 +635,19 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
       o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+0.04);
     }catch(e){}
   }
-  function buzz(){try{if(navigator.vibrate)navigator.vibrate(15)}catch(e){}pop()}
+  var hapEl=null;
+  function hapticOn(){try{return localStorage.getItem("gl-haptic")!=="off"}catch(e){return true}}
+  function haptic(){
+    if(!hapticOn())return;
+    try{if(navigator.vibrate){navigator.vibrate(15);return}}catch(e){}
+    try{
+      if(!hapEl){hapEl=document.createElement("label");hapEl.setAttribute("aria-hidden","true");hapEl.style.cssText="position:fixed;left:-100px;top:-100px;width:1px;height:1px;opacity:0;pointer-events:none";var i=document.createElement("input");i.type="checkbox";i.setAttribute("switch","");hapEl.appendChild(i);document.body.appendChild(hapEl)}
+      hapEl.click();
+    }catch(e){}
+  }
+  function buzz(){haptic();pop()}
   function finishWorkout(){
-    var c=doneCount();if(!c.n)return;
+    var c=doneCount();if(!c.n)return;buzz();
     var rec={id:uid(),date:draft.date,warm:draft.warm,note:draft.note.trim(),sets:{}};
     EX.forEach(function(e){
       var a=draft.sets[e.id].filter(function(s){return s.done}).map(function(s){return {kg:num(s.kg),reps:num(s.reps)}});
@@ -718,7 +728,7 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
   }
   function saveRun(){
     var km=enteredKm(runDraft),secs=runSecs(runDraft);
-    if(!(km>0&&secs>0))return;
+    if(!(km>0&&secs>0))return;buzz();
     var act=runDraft.act;
     var rec={id:uid(),date:runDraft.date,act:act,km:Math.round(km*1000)/1000,secs:Math.round(secs),type:runDraft.type,feel:runDraft.feel||null,note:runDraft.note.trim()};
     if(WHERE[act])rec.where=WHERE[act].indexOf(runDraft.where)>=0?runDraft.where:"Outdoors";
@@ -1138,6 +1148,7 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
     else{stt="Synced";dot="ok"}
     h+='<div class="sgroup"><div class="srow prof"><div class="avatar">'+esc(ini)+'</div><div class="sl"><span>'+esc(nm)+'</span><small>'+(cloud.email?esc(cloud.email)+' ':'')+'<i class="sdot '+dot+'"></i>'+(dot==='ok'?'':stt)+'</small></div>'+(cloud.uid?'<button class="so" id="signout">Sign out</button>':'')+'</div></div>';
     h+='<div class="sgroup"><div class="srow"><div class="sl"><span>Tick sound</span><small>A tiny click when you tick a set</small></div><button class="sw" id="snd" role="switch" aria-checked="'+soundOn()+'" aria-label="Tick sound"><i></i></button></div>'+
+       '<div class="srow"><div class="sl"><span>Haptic tap</span><small>A small tap when you tick a set. Needs iOS 17.4 or newer</small></div><button class="sw" id="hap" role="switch" aria-checked="'+hapticOn()+'" aria-label="Haptic tap"><i></i></button></div>'+
        '<button class="srow" id="openroutines"><div class="sl"><span>Workouts</span><small>'+(state.routines.length+1)+' routine'+(state.routines.length?'s':'')+' · create and edit</small></div>'+chevR()+'</button>'+
        '<button class="srow" id="opendata"><div class="sl"><span>Data &amp; backup</span><small>Export, import and restore</small></div>'+chevR()+'</button></div>';
     h+='<div class="help" style="text-align:center">'+state.sessions.length+' workout'+(state.sessions.length===1?'':'s')+' · '+state.runs.length+' cardio session'+(state.runs.length===1?'':'s')+'</div>';
@@ -1206,6 +1217,7 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
     if(t.id==="openroutines"){acctView="routines";render();window.scrollTo(0,0);return}
     if(t.id==="opendata"){acctView="data";render();window.scrollTo(0,0);return}
     if(t.id==="acctback"){acctView=(acctView==="data"||acctView==="routines")?"main":"routines";render();return}
+    if(t.id==="hap"){try{localStorage.setItem("gl-haptic",hapticOn()?"off":"on")}catch(e){}render();haptic();return}
     if(t.id==="snd"){try{localStorage.setItem("gl-sound",soundOn()?"off":"on")}catch(e){}render();if(soundOn())pop();return}
     if(t.id==="signout"){firebase.auth().signOut();return}
     if(t.id==="bk-copy"){
