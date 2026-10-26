@@ -635,15 +635,19 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
       o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+0.04);
     }catch(e){}
   }
-  var hapEl=null;
+  var hapEl=null,hapIn=null;
   function hapticOn(){try{return localStorage.getItem("gl-haptic")!=="off"}catch(e){return true}}
+  function hapInit(){
+    if(hapEl||!document.body)return;
+    hapEl=document.createElement("label");hapEl.id="hapl";hapEl.setAttribute("aria-hidden","true");
+    hapEl.style.cssText="position:fixed;right:4px;bottom:4px;width:24px;height:24px;opacity:.02;overflow:hidden;z-index:-1;pointer-events:none";
+    hapIn=document.createElement("input");hapIn.type="checkbox";hapIn.id="hapi";hapIn.setAttribute("switch","");hapIn.tabIndex=-1;
+    hapEl.appendChild(hapIn);document.body.appendChild(hapEl);
+  }
   function haptic(){
     if(!hapticOn())return;
     try{if(navigator.vibrate){navigator.vibrate(15);return}}catch(e){}
-    try{
-      if(!hapEl){hapEl=document.createElement("label");hapEl.setAttribute("aria-hidden","true");hapEl.style.cssText="position:fixed;left:-100px;top:-100px;width:1px;height:1px;opacity:0;pointer-events:none";var i=document.createElement("input");i.type="checkbox";i.setAttribute("switch","");hapEl.appendChild(i);document.body.appendChild(hapEl)}
-      hapEl.click();
-    }catch(e){}
+    try{hapInit();hapEl.click()}catch(e){}
   }
   function buzz(){haptic();pop()}
   function finishWorkout(){
@@ -1264,6 +1268,7 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
   });
 
   /* ---------- start ---------- */
+  hapInit();
   var cached=lsGet(K.data);if(cached){state.sessions=cached.sessions||[];state.runs=cached.runs||[];state.routines=cached.routines||[]}
   var cp=lsGet(K.photos);if(cp&&typeof cp==="object")photos=cp;
   draft=lsGet(K.draft);
