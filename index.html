@@ -254,7 +254,7 @@ body.kb .tabs{transform:translateY(160%);opacity:0;pointer-events:none}
 @media (prefers-reduced-motion:reduce){.tabs{transition:none}}
 
 /* ---- Round 3 polish ---- */
-body:has(input:focus:not(#hapi),textarea:focus,select:focus) .tabs{transform:translateY(140%);opacity:0;pointer-events:none}
+body:has(input:focus:not(.hapov),textarea:focus,select:focus) .tabs{transform:translateY(140%);opacity:0;pointer-events:none}
 .tabs{transition:transform .25s cubic-bezier(.16,1,.3,1),opacity .2s ease}
 .card,.stat{background:rgba(255,255,255,.045);border-top-color:rgba(220,235,255,.2);border-left-color:rgba(220,235,255,.07);border-right-color:rgba(220,235,255,.07);border-bottom-color:rgba(220,235,255,.03);
   box-shadow:inset 0 1px 0 0 rgba(255,255,255,.1),0 12px 32px -8px rgba(0,0,0,.5)}
@@ -412,6 +412,16 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
 .exrange{display:flex;align-items:center;gap:8px;flex:none}
 .exrange span{font:600 12px var(--body);letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.45)}
 .exrange input{width:84px;text-align:center;font:700 15px var(--body);min-height:40px}
+
+/* real-touch haptic overlays (iOS only buzzes for a finger landing on a switch) */
+.hapwrap{position:relative;display:flex;min-width:0}
+.hapwrap>button{flex:1;min-width:0}
+.hapwrap.schk{justify-self:center}
+.hapwrap.wchk{flex:none}
+.hapwrap.blk{display:flex;width:100%}
+.hapov{position:absolute;left:0;top:0;width:100%;height:100%;margin:0;padding:0;opacity:.01;z-index:2;-webkit-appearance:none;appearance:none;border:0;background:transparent}
+button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
+.hapwrap:active>button{transform:scale(.94)}
 </style>
 </head>
 <body>
@@ -635,20 +645,9 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
       o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+0.04);
     }catch(e){}
   }
-  var hapEl=null,hapIn=null;
   function hapticOn(){try{return localStorage.getItem("gl-haptic")!=="off"}catch(e){return true}}
-  function hapInit(){
-    if(hapEl||!document.body)return;
-    hapEl=document.createElement("label");hapEl.id="hapl";hapEl.setAttribute("aria-hidden","true");
-    hapEl.style.cssText="position:fixed;right:4px;bottom:4px;width:24px;height:24px;opacity:.02;overflow:hidden;z-index:-1;pointer-events:none";
-    hapIn=document.createElement("input");hapIn.type="checkbox";hapIn.id="hapi";hapIn.setAttribute("switch","");hapIn.tabIndex=-1;
-    hapEl.appendChild(hapIn);document.body.appendChild(hapEl);
-  }
-  function haptic(){
-    if(!hapticOn())return;
-    try{if(navigator.vibrate){navigator.vibrate(15);return}}catch(e){}
-    try{hapInit();hapEl.click();hapIn.blur()}catch(e){}
-  }
+  function haptic(){if(!hapticOn())return;try{if(navigator.vibrate)navigator.vibrate(15)}catch(e){}}
+  function hw(btn,cls){return '<span class="hapwrap '+(cls||"")+'">'+btn+'<input type="checkbox" switch class="hapov" tabindex="-1" aria-hidden="true"></span>'}
   function buzz(){haptic();pop()}
   function finishWorkout(){
     var c=doneCount();if(!c.n)return;buzz();
@@ -904,7 +903,7 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
   function renderToday(){
     var h='<div class="logtop todayhead"><h1 class="th">Workout A</h1><label class="datepill"><span id="dtxt2">'+esc(dateLabel(draft.date))+'</span><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg><input type="date" id="date" aria-label="Session date" value="'+esc(draft.date)+'"></label></div>';
     h+='<div class="proginline"><div class="progress"><i id="prog"></i></div><span class="pl" id="proglabel"></span></div>';
-    h+='<div class="card warm'+(draft.warm?' done':'')+'" id="warmcard"><button class="chk" id="warm" aria-label="Warm-up done" style="width:52px">'+(draft.warm?'✓':'')+'</button><div><h2>Warm-up</h2><div class="last">5 min treadmill or bike, easy</div></div></div>';
+    h+='<div class="card warm'+(draft.warm?' done':'')+'" id="warmcard">'+hw('<button class="chk" id="warm" aria-label="Warm-up done" style="width:52px">'+(draft.warm?'✓':'')+'</button>','wchk')+'<div><h2>Warm-up</h2><div class="last">5 min treadmill or bike, easy</div></div></div>';
     EX.forEach(function(e){
       var last=lastFor(e.id),ph=photos[e.id];
       h+='<section class="card" data-ex="'+e.id+'"><div class="card-top"><div class="card-left"><button class="thumb" data-act="photo" aria-label="'+(ph?'View photo of ':'Add a photo of ')+esc(e.name)+'">'+(ph?'<img alt="'+esc(e.name)+'" src="'+ph+'">':'+ Photo')+'</button><h2>'+esc(e.name)+'</h2></div><span class="target">'+e.sets+' × '+e.range+'</span></div>';
@@ -913,12 +912,12 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
         h+='<div class="setrow'+(s.done?' done':'')+'" data-i="'+i+'"><span class="n">'+(i+1)+'</span>'+
           '<label class="field"><span>kg</span><input type="number" inputmode="decimal" step="0.5" min="0" data-f="kg" value="'+esc(s.kg)+'" aria-label="'+esc(e.name)+' set '+(i+1)+' kilograms"></label>'+
           '<label class="field"><span>'+(e.unit||"reps")+'</span><input type="number" inputmode="numeric" step="1" min="0" data-f="reps" value="'+esc(s.reps)+'" aria-label="'+esc(e.name)+' set '+(i+1)+' reps"></label>'+
-          '<button class="chk" data-act="done" aria-label="Mark set '+(i+1)+' done">'+(s.done?'✓':'')+'</button></div>';
+          hw('<button class="chk" data-act="done" aria-label="Mark set '+(i+1)+' done">'+(s.done?'✓':'')+'</button>','schk')+'</div>';
       });
       h+='<button class="ghost" data-act="add">+ Add a set</button></section>';
     });
     h+='<div class="card"><label class="l" for="note">Notes (optional)</label><textarea id="note" rows="2" placeholder="How did it feel? Seat settings, anything to remember">'+esc(draft.note)+'</textarea></div>';
-    h+='<button class="primary" id="finish">Finish workout</button>';
+    h+=hw('<button class="primary" id="finish">Finish workout</button>','blk');
     main.innerHTML=h;updateProgress();
   }
 
@@ -945,7 +944,7 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
       h+='<div><span class="last">How did it feel?</span><div class="feel" style="margin-top:6px">'+[1,2,3,4,5].map(function(n){return '<button class="chip" data-feel="'+n+'" aria-pressed="'+(runDraft.feel===n)+'" aria-label="Feeling '+n+' of 5">'+n+'</button>'}).join('')+'</div><div class="feelcap" style="margin-top:4px"><span>Rough</span><span>Great</span></div></div>';
       h+='<label class="field"><span>Notes (optional)</span><textarea id="rnote" rows="2" placeholder="'+(act==="Row"?'Resistance, stroke rate, how it felt':act==="Cycle"?'Route, gears, resistance, how it felt':act==="Stairs"?'Level, how it felt':'Route, weather, legs, anything to remember')+'">'+esc(runDraft.note)+'</textarea></label>';
     }
-    h+='<button class="primary" id="saverun" disabled>Save '+lc+'</button></section>';
+    h+=hw('<button class="primary" id="saverun" disabled>Save '+lc+'</button>','blk')+'</section>';
     main.innerHTML=h;updatePaceBox();
   }
 
@@ -1162,7 +1161,7 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
   function render(){
     Array.prototype.forEach.call(document.querySelectorAll(".tab"),function(b){b.setAttribute("aria-selected",b.dataset.tab===tab)});
     var tt=$("#ttl");if(tt)tt.textContent=tab==="runs"?"Cardio":tab==="hist"?"History":tab==="acct"?"Account":"Workout A";
-    document.body.dataset.tab=tab;
+    document.body.dataset.tab=tab;document.body.classList.toggle("nohap",!hapticOn());
     if(tab==="today")renderToday();else if(tab==="runs")renderRuns();else if(tab==="hist")renderHist();else renderAcct();
   }
 
@@ -1181,13 +1180,14 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
     window.addEventListener("scroll",function(){if(!tick){tick=true;requestAnimationFrame(onScroll)}},{passive:true});
     document.getElementById("navhandle").addEventListener("click",function(){document.body.classList.remove("navhide")});
   })();
-  document.addEventListener("focusin",function(ev){if(ev.target&&ev.target.id==="hapi")return;var n=ev.target&&ev.target.tagName;if(n==="INPUT"||n==="TEXTAREA"||n==="SELECT")document.body.classList.add("kb")});
+  document.addEventListener("focusin",function(ev){if(ev.target&&ev.target.classList&&ev.target.classList.contains("hapov"))return;var n=ev.target&&ev.target.tagName;if(n==="INPUT"||n==="TEXTAREA"||n==="SELECT")document.body.classList.add("kb")});
   document.addEventListener("focusout",function(){setTimeout(function(){var a=document.activeElement,n=a&&a.tagName;if(!(n==="INPUT"||n==="TEXTAREA"||n==="SELECT"))document.body.classList.remove("kb")},60)});
   $("#tabs").addEventListener("click",function(ev){
     var b=ev.target.closest(".tab");if(!b)return;
     tab=b.dataset.tab;confirmDel=null;acctView="main";render();window.scrollTo(0,0);document.body.classList.remove("navhide");
   });
   main.addEventListener("click",function(ev){
+    if(ev.target.classList&&ev.target.classList.contains("hapov")){var hb=ev.target.previousElementSibling;ev.target.checked=false;try{ev.target.blur()}catch(e){}if(hb&&!hb.disabled)hb.click();return}
     var cd=ev.target.closest("[data-card]");
     if(cd&&!ev.target.closest("button")){var cid=cd.dataset.card;openCards[cid]=!openCards[cid];freshCard=openCards[cid]?cid:null;render();return}
     var t=ev.target.closest("button");if(!t)return;
@@ -1221,7 +1221,7 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
     if(t.id==="openroutines"){acctView="routines";render();window.scrollTo(0,0);return}
     if(t.id==="opendata"){acctView="data";render();window.scrollTo(0,0);return}
     if(t.id==="acctback"){acctView=(acctView==="data"||acctView==="routines")?"main":"routines";render();return}
-    if(t.id==="hap"){try{localStorage.setItem("gl-haptic",hapticOn()?"off":"on")}catch(e){}render();haptic();return}
+    if(t.id==="hap"){try{localStorage.setItem("gl-haptic",hapticOn()?"off":"on")}catch(e){}render();return}
     if(t.id==="snd"){try{localStorage.setItem("gl-sound",soundOn()?"off":"on")}catch(e){}render();if(soundOn())pop();return}
     if(t.id==="signout"){firebase.auth().signOut();return}
     if(t.id==="bk-copy"){
@@ -1268,7 +1268,6 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
   });
 
   /* ---------- start ---------- */
-  hapInit();
   var cached=lsGet(K.data);if(cached){state.sessions=cached.sessions||[];state.runs=cached.runs||[];state.routines=cached.routines||[]}
   var cp=lsGet(K.photos);if(cp&&typeof cp==="object")photos=cp;
   draft=lsGet(K.draft);
