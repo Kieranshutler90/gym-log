@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Haptic test</title>
+<style>
+body{margin:0;background:#060709;color:#f5f6f7;font:16px/1.4 -apple-system,system-ui,sans-serif;padding:24px 16px 80px}
+h1{font-size:26px;margin:0 0 6px}
+p{color:#9aa3ad;margin:0 0 16px;font-size:14px}
+.row{display:flex;align-items:center;gap:12px;background:#12151a;border-radius:18px;padding:12px 14px;margin-bottom:10px}
+.row b{display:block;font-size:15px}.row small{color:#9aa3ad}
+.row .t{flex:1;min-width:0}
+button.go{min-height:48px;padding:0 18px;border-radius:24px;border:0;background:#d4ff00;color:#0a1006;font-weight:800;font-size:15px}
+#log{background:#12151a;border-radius:14px;padding:12px;font:13px/1.5 ui-monospace,monospace;color:#c8d0d8;white-space:pre-wrap;min-height:60px}
+.hid{position:fixed;right:4px;bottom:4px;width:24px;height:24px;opacity:.02;overflow:hidden;z-index:-1}
+input[type=checkbox]{width:51px;height:31px}
+</style>
+</head>
+<body>
+<h1>Haptic test</h1>
+<p>Tap each button and feel your phone. Tell me which letters buzz. Make sure System Haptics is on and the phone isn't in Low Power Mode.</p>
+<div id="env" class="row"><div class="t"><small id="envt"></small></div></div>
+
+<div class="row"><div class="t"><b>A. Hidden switch, label click</b><small>What the app uses now</small></div><button class="go" id="a">Tap A</button></div>
+<div class="row"><div class="t"><b>B. Visible switch, tap it yourself</b><small>Flip this switch directly</small></div><input type="checkbox" switch id="b"></div>
+<div class="row"><div class="t"><b>C. Input click()</b><small>Click the switch input directly</small></div><button class="go" id="c">Tap C</button></div>
+<div class="row"><div class="t"><b>D. Label click on touchstart</b><small>Fires as your finger lands</small></div><button class="go" id="d">Tap D</button></div>
+<div class="row"><div class="t"><b>E. Double pulse</b><small>Two label clicks in a row</small></div><button class="go" id="e">Tap E</button></div>
+<div class="row"><div class="t"><b>F. Switch in a visible label</b><small>Switch shown under this button</small></div><button class="go" id="f">Tap F</button></div>
+<div class="row"><div class="t"><b>G. navigator.vibrate</b><small>Android only normally</small></div><button class="go" id="g">Tap G</button></div>
+<div class="row"><div class="t"><b>H. Plain checkbox (no switch)</b><small>Control, should be silent</small></div><button class="go" id="h">Tap H</button></div>
+
+<div class="row"><label id="fl" for="fi" style="display:flex;gap:10px;align-items:center"><span>Switch for F</span><input type="checkbox" switch id="fi"></label></div>
+
+<p style="margin-top:18px">Log</p>
+<div id="log"></div>
+
+<label class="hid" id="al"><input type="checkbox" switch id="ai" tabindex="-1"></label>
+<label class="hid" id="dl" style="right:40px"><input type="checkbox" switch id="di" tabindex="-1"></label>
+<label class="hid" id="el" style="right:76px"><input type="checkbox" switch id="ei" tabindex="-1"></label>
+<label class="hid" id="cl" style="right:112px"><input type="checkbox" switch id="ci" tabindex="-1"></label>
+<label class="hid" id="hl" style="right:148px"><input type="checkbox" id="hi" tabindex="-1"></label>
+<script>
+var L=document.getElementById("log");
+function log(t){L.textContent=t+"\n"+L.textContent}
+var ua=navigator.userAgent,m=ua.match(/OS (\d+)[_.](\d+)/);
+document.getElementById("envt").textContent="iOS "+(m?m[1]+"."+m[2]:"unknown")+" · "+(navigator.standalone||matchMedia("(display-mode: standalone)").matches?"Home Screen app":"Safari tab")+" · vibrate "+(navigator.vibrate?"yes":"no");
+function on(id,ev,fn){document.getElementById(id).addEventListener(ev,fn)}
+on("a","click",function(){document.getElementById("al").click();log("A fired")});
+on("b","change",function(){log("B toggled")});
+on("c","click",function(){document.getElementById("ci").click();log("C fired")});
+on("d","touchstart",function(){document.getElementById("dl").click();log("D fired (touchstart)")},{passive:true});
+on("e","click",function(){document.getElementById("el").click();document.getElementById("el").click();log("E fired x2")});
+on("f","click",function(){document.getElementById("fl").click();log("F fired")});
+on("g","click",function(){var ok=false;try{ok=navigator.vibrate&&navigator.vibrate(30)}catch(e){}log("G vibrate "+(navigator.vibrate?(ok?"ok":"returned false"):"not supported"))});
+on("h","click",function(){document.getElementById("hl").click();log("H fired (control)")});
+</script>
+</body>
+</html>
