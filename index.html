@@ -422,6 +422,31 @@ body[data-sync="err"] header h1::after,body[data-sync="err"] .th::after{backgrou
 .hapov{position:absolute;left:0;top:0;width:100%;height:100%;margin:0;padding:0;opacity:.01;z-index:2;-webkit-appearance:none;appearance:none;border:0;background:transparent}
 button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
 .hapwrap:active>button{transform:scale(.94)}
+
+/* ---- Collapsible exercise cards + rest timer ---- */
+.card[data-ex] .card-top{cursor:pointer;-webkit-tap-highlight-color:transparent;align-items:center}
+.card-right{display:flex;align-items:center;gap:8px;flex:none}
+.excount{display:none;font:700 13px var(--body);color:var(--muted);font-variant-numeric:tabular-nums;border:1px solid var(--line);border-radius:9999px;padding:3px 10px}
+.exchev{display:flex;color:var(--muted);transition:transform .2s ease}
+.card.min .exchev{transform:rotate(-90deg)}
+.card.min{gap:0}
+.card.min .excount{display:inline-block}
+.card.min .target{display:none}
+.card.min .thumb,.card.min .last,.card.min .setrow,.card.min .ghost{display:none}
+.card.min.alldone .excount{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+#rest{position:fixed;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));bottom:calc(86px + env(safe-area-inset-bottom,0px));max-width:340px;margin:0 auto;z-index:16;display:flex;align-items:center;gap:8px;padding:8px 8px 8px 18px;border-radius:9999px;overflow:hidden;background:rgba(18,20,24,.95);border:1px solid rgba(212,255,0,.45);box-shadow:0 12px 32px -8px rgba(0,0,0,.6);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);transition:bottom .25s cubic-bezier(.16,1,.3,1),opacity .2s ease}
+#rest[hidden]{display:none}
+#rest .rt{font:800 24px var(--display);font-variant-numeric:tabular-nums;letter-spacing:.01em;min-width:62px}
+#rest .rn{flex:1;min-width:0;font:600 12px var(--body);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rest button{min-height:40px;flex:none;border-radius:9999px;border:1px solid var(--line);background:rgba(255,255,255,.08);color:var(--ink);font:600 14px var(--body);padding:0 14px}
+#rest .rprog{position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--accent);transition:width .25s linear}
+#rest.over{background:var(--accent);border-color:var(--accent)}
+#rest.over .rt,#rest.over .rn{color:var(--accent-ink)}
+#rest.over button{background:rgba(10,16,6,.14);border-color:transparent;color:var(--accent-ink)}
+#rest.over .rprog{display:none}
+body.navhide #rest{bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+body.kb #rest{opacity:0;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#rest,#rest .rprog,.exchev{transition:none}}
 </style>
 </head>
 <body>
@@ -453,6 +478,7 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
 <input type="file" id="scanfile" accept="image/*" hidden>
 <input type="file" id="importfile" accept="application/json,.json" hidden>
 <div class="toast" id="toast" hidden></div>
+<div id="rest" hidden role="timer"><span class="rt" id="rtime2">1:30</span><span class="rn" id="rname"></span><button type="button" data-rest="add">+30s</button><button type="button" data-rest="skip">Skip</button><i class="rprog" id="rprog"></i></div>
 
 <script src="firebase-config.js"></script>
 <script>
@@ -466,9 +492,10 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
     {id:"shoulder-press",name:"Shoulder press machine",sets:2,range:"10–12"},
     {id:"core",name:"Cable crunch / plank",sets:3,range:"12",unit:"reps or sec"}
   ];
+  var REST_DEFAULT=90; // seconds, used when an exercise has no rest time of its own
   var TARGET_SECS_PER_KM=8100/21.0975; // sub 2:15 half marathon
   var K={data:"gl-data-v2",photos:"gl-photos-v2",draft:"gl-draft-v2",runDraft:"gl-rundraft-v2",auth:"gl-auth-v1"};
-  var state={sessions:[],runs:[],routines:[]}, photos={}, draft=null, runDraft=null, tab="today";
+  var state={sessions:[],runs:[],routines:[]}, photos={}, draft=null, runDraft=null, tab="today", collapsed={};
   var confirmDel=null, pickFor=null, importText="";
   var cloud={ready:false,uid:null,email:null,db:null,unsubs:[],err:null,configured:false,loading:false};
   var $=function(s){return document.querySelector(s)};
@@ -611,7 +638,7 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
     return (top!==null?top+" kg × ":"")+reps;
   }
   function newDraft(){
-    var d={date:todayISO(),warm:false,note:"",sets:{}};
+    var d={date:todayISO(),warm:false,note:"",sets:{}};collapsed={};
     EX.forEach(function(e){
       var last=lastFor(e.id),arr=[];
       for(var i=0;i<e.sets;i++){
@@ -628,6 +655,12 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
     if(p)p.style.width=(c.t?100*c.n/c.t:0)+"%";
     if(l)l.textContent=c.n+" / "+c.t+" sets";
     if(f)f.disabled=c.n===0;
+    EX.forEach(function(e){
+      var card=main.querySelector('[data-ex="'+e.id+'"]');if(!card)return;
+      var arr=draft.sets[e.id],dn=arr.filter(function(x){return x.done}).length,cn=card.querySelector(".excount");
+      if(cn)cn.textContent=dn+"/"+arr.length;
+      card.classList.toggle("alldone",arr.length>0&&dn===arr.length);
+    });
     var rows=document.querySelectorAll(".setrow"),found=false;
     for(var k=0;k<rows.length;k++){var on=!found&&!rows[k].classList.contains("done");if(on)found=true;rows[k].classList.toggle("active",on)}
   }
@@ -649,6 +682,68 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
   function haptic(){if(!hapticOn())return;try{if(navigator.vibrate)navigator.vibrate(15)}catch(e){}}
   function hw(btn,cls){return '<span class="hapwrap '+(cls||"")+'">'+btn+'<input type="checkbox" switch class="hapov" tabindex="-1" aria-hidden="true"></span>'}
   function buzz(){haptic();pop()}
+
+  /* ---------- rest timer ---------- */
+  var rest={end:0,total:0,iv:0,hide:0,on:false};
+  function restSecs(e){
+    if(e.restSec>0)return e.restSec;
+    var t=e.rest||"",m=/(\d+(?:\.\d+)?)\s*min/i.exec(t);if(m)return Math.round(parseFloat(m[1])*60);
+    m=/(\d+)\s*s(?:ec)?/i.exec(t);if(m)return +m[1];
+    return REST_DEFAULT;
+  }
+  function chime(){
+    if(hapticOn()){try{if(navigator.vibrate)navigator.vibrate([200,100,200])}catch(e){}}
+    if(!soundOn())return;
+    try{
+      var AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+      if(!actx)actx=new AC();
+      if(actx.state==="suspended")actx.resume();
+      for(var i=0;i<3;i++){
+        var t=actx.currentTime+i*0.2,o=actx.createOscillator(),g=actx.createGain();
+        o.type="sine";o.frequency.setValueAtTime(i===2?1320:880,t);
+        g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.25,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+0.15);
+        o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+0.16);
+      }
+    }catch(e){}
+  }
+  function fmtRest(ms){var s=Math.max(0,Math.ceil(ms/1000));return Math.floor(s/60)+":"+pad(s%60)}
+  function restPaint(){
+    var left=rest.end-Date.now(),el=$("#rest");if(!el)return;
+    $("#rtime2").textContent=fmtRest(left);
+    $("#rprog").style.width=Math.max(0,Math.min(100,100*left/rest.total))+"%";
+  }
+  function restTick(){
+    if(!rest.on)return;
+    if(rest.end-Date.now()<=0){restDone();return}
+    restPaint();
+  }
+  function restDone(){
+    clearInterval(rest.iv);rest.iv=0;rest.on=false;
+    var el=$("#rest");if(!el)return;
+    el.classList.add("over");$("#rtime2").textContent="Go";$("#rname").textContent="Rest over";
+    el.querySelector('[data-rest="add"]').hidden=true;el.querySelector('[data-rest="skip"]').textContent="Dismiss";
+    chime();
+    clearTimeout(rest.hide);rest.hide=setTimeout(stopRest,6000);
+  }
+  function stopRest(){
+    clearInterval(rest.iv);rest.iv=0;rest.on=false;clearTimeout(rest.hide);
+    var el=$("#rest");if(el){el.hidden=true;el.classList.remove("over")}
+  }
+  function startRest(e){
+    var secs=restSecs(e),el=$("#rest");if(!el)return;
+    clearInterval(rest.iv);clearTimeout(rest.hide);
+    rest.total=secs*1000;rest.end=Date.now()+rest.total;rest.on=true;
+    el.classList.remove("over");el.hidden=false;
+    el.querySelector('[data-rest="add"]').hidden=false;el.querySelector('[data-rest="skip"]').textContent="Skip";
+    $("#rname").textContent="Rest · "+e.name;
+    restPaint();rest.iv=setInterval(restTick,250);
+  }
+  $("#rest").addEventListener("click",function(ev){
+    var b=ev.target.closest("button");if(!b)return;
+    if(b.dataset.rest==="add"&&rest.on){rest.end+=30000;rest.total+=30000;restPaint()}
+    else stopRest();
+  });
+  document.addEventListener("visibilitychange",function(){if(!document.hidden)restTick()});
   function finishWorkout(){
     var c=doneCount();if(!c.n)return;buzz();
     var rec={id:uid(),date:draft.date,warm:draft.warm,note:draft.note.trim(),sets:{}};
@@ -658,7 +753,7 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
     });
     state.sessions=state.sessions.concat([rec]);
     saveLocal();cw("sessions",rec.id,rec);
-    draft=newDraft();saveDraft();
+    draft=newDraft();saveDraft();stopRest();
     tab="hist";render();window.scrollTo(0,0);toast("Workout saved");
   }
 
@@ -906,7 +1001,7 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
     h+='<div class="card warm'+(draft.warm?' done':'')+'" id="warmcard">'+hw('<button class="chk" id="warm" aria-label="Warm-up done" style="width:52px">'+(draft.warm?'✓':'')+'</button>','wchk')+'<div><h2>Warm-up</h2><div class="last">5 min treadmill or bike, easy</div></div></div>';
     EX.forEach(function(e){
       var last=lastFor(e.id),ph=photos[e.id];
-      h+='<section class="card" data-ex="'+e.id+'"><div class="card-top"><div class="card-left"><button class="thumb" data-act="photo" aria-label="'+(ph?'View photo of ':'Add a photo of ')+esc(e.name)+'">'+(ph?'<img alt="'+esc(e.name)+'" src="'+ph+'">':'+ Photo')+'</button><h2>'+esc(e.name)+'</h2></div><span class="target">'+e.sets+' × '+e.range+'</span></div>';
+      h+='<section class="card'+(collapsed[e.id]?' min':'')+'" data-ex="'+e.id+'"><div class="card-top" data-act="toggle" role="button" tabindex="0" aria-expanded="true" aria-label="'+esc(e.name)+', tap to collapse or expand"><div class="card-left"><button class="thumb" data-act="photo" aria-label="'+(ph?'View photo of ':'Add a photo of ')+esc(e.name)+'">'+(ph?'<img alt="'+esc(e.name)+'" src="'+ph+'">':'+ Photo')+'</button><h2>'+esc(e.name)+'</h2></div><div class="card-right"><span class="excount"></span><span class="target">'+e.sets+' × '+e.range+'</span><span class="exchev" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></div></div>';
       h+='<div class="last">'+(last?'Last time: '+esc(fmtSets(last)):'First time. Start light, leave 2 reps in the tank.')+(e.rest?' · '+e.rest:'')+'</div>';
       draft.sets[e.id].forEach(function(s,i){
         h+='<div class="setrow'+(s.done?' done':'')+'" data-i="'+i+'"><span class="n">'+(i+1)+'</span>'+
@@ -1186,10 +1281,22 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
     var b=ev.target.closest(".tab");if(!b)return;
     tab=b.dataset.tab;confirmDel=null;acctView="main";render();window.scrollTo(0,0);document.body.classList.remove("navhide");
   });
+  function toggleCard(head){
+    var card=head.closest("[data-ex]");if(!card)return;
+    var on=card.classList.toggle("min");collapsed[card.dataset.ex]=on;
+    head.setAttribute("aria-expanded",on?"false":"true");
+  }
+  main.addEventListener("keydown",function(ev){
+    if(ev.key!=="Enter"&&ev.key!==" ")return;
+    var tg=ev.target.closest&&ev.target.closest('[data-act="toggle"]');
+    if(tg&&ev.target===tg){ev.preventDefault();toggleCard(tg)}
+  });
   main.addEventListener("click",function(ev){
     if(ev.target.classList&&ev.target.classList.contains("hapov")){var hb=ev.target.previousElementSibling;ev.target.checked=false;try{ev.target.blur()}catch(e){}if(hb&&!hb.disabled)hb.click();return}
     var cd=ev.target.closest("[data-card]");
     if(cd&&!ev.target.closest("button")){var cid=cd.dataset.card;openCards[cid]=!openCards[cid];freshCard=openCards[cid]?cid:null;render();return}
+    var tg=ev.target.closest('[data-act="toggle"]');
+    if(tg&&!ev.target.closest("button")){toggleCard(tg);return}
     var t=ev.target.closest("button");if(!t)return;
     if(t.dataset.hf){histFilter=t.dataset.hf;menuFor=null;render();return}
     if(t.dataset.hv){histView=t.dataset.hv;menuFor=null;render();return}
@@ -1247,6 +1354,19 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
     if(t.dataset.act==="done"){
       var row=t.closest(".setrow"),i=+row.dataset.i,s=draft.sets[id2][i];
       s.done=!s.done;saveDraft();row.classList.toggle("done",s.done);t.textContent=s.done?"✓":"";if(s.done)buzz();updateProgress();
+      if(s.done){
+        var cc=doneCount(),ex=EX.filter(function(z){return z.id===id2})[0];
+        if(cc.n<cc.t&&ex)startRest(ex);else stopRest();
+        if(draft.sets[id2].every(function(z){return z.done})){
+          setTimeout(function(){
+            var cEl=main.querySelector('[data-ex="'+id2+'"]');
+            if(cEl&&draft.sets[id2].every(function(z){return z.done})&&!cEl.classList.contains("min")){
+              cEl.classList.add("min");collapsed[id2]=true;
+              var hd=cEl.querySelector('[data-act="toggle"]');if(hd)hd.setAttribute("aria-expanded","false");
+            }
+          },500);
+        }
+      }
     }
   });
   ["change","keyup","blur"].forEach(function(n){main.addEventListener(n,function(ev){if(ev.target&&ev.target.id==="rtime"&&n==="keyup"){return}updatePaceBox()},true)});
