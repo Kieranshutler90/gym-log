@@ -329,7 +329,7 @@ body.navhide .tabs,body.kb .tabs{transform:translateY(14px) scale(.94);opacity:0
 .cdet.fresh{animation:cdin .28s cubic-bezier(.22,.8,.3,1)}
 @keyframes cdin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 .recrow{flex-direction:row;align-items:center;gap:12px;padding:12px 14px}
-.recrow .rl{flex-grow:1;min-width:0;display:flex;flex-direction:column}
+.recrow .rl{flex:1 1 0;min-width:0;display:flex;flex-direction:column}
 .recrow .rl .last{white-space:nowrap}
 .recrow .rl b{font:700 15.5px var(--body);display:flex;align-items:center;gap:8px}
 .recrow .rb{text-align:right;min-width:62px}
@@ -436,6 +436,26 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
 .card.min.alldone .excount{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .primary.armed{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
 .wkpick{margin:-2px 0 0}
+.recrow{flex-wrap:wrap;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.recrow .rchev{display:flex;color:rgba(255,255,255,.4);transition:transform .2s ease;margin-left:-4px}
+.recrow.open .rchev{transform:rotate(180deg)}
+.recdet{flex-basis:100%;width:100%;gap:12px;cursor:default}
+.rmseg{display:flex;gap:8px}
+.rmseg .chip{min-height:34px;padding:0 14px;font-size:13px}
+.lcstats{display:flex;flex-wrap:wrap;gap:6px 16px;font:500 12.5px var(--body);color:var(--muted)}
+.lcstats b{color:var(--ink);font-weight:800;font-variant-numeric:tabular-nums}
+.lcstats .up b{color:var(--accent)}
+svg.lc{width:100%;height:auto;display:block;overflow:visible}
+.lc .lg{stroke:rgba(255,255,255,.07);stroke-width:1}
+.lc .la{fill:rgba(255,255,255,.45);font:10px var(--body);font-variant-numeric:tabular-nums}
+.lc .ll{fill:none;stroke:rgba(212,255,0,.85);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.lc .lp{fill:rgba(212,255,0,.55)}
+.lc .le{fill:#d4ff00}
+.lc .lh{fill:rgba(212,255,0,.18)}
+.lc .ll{stroke-dasharray:1200;stroke-dashoffset:0}
+.recdet.fresh .lc .ll{animation:lcdraw .7s cubic-bezier(.22,.8,.3,1)}
+@keyframes lcdraw{from{stroke-dashoffset:1200}to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion:reduce){.recdet.fresh .lc .ll{animation:none}.recrow .rchev{transition:none}}
 .setrow input::placeholder{color:rgba(255,255,255,.3);opacity:1}
 /* ---- routine editor: matching capsules, vector icons, rest picker ---- */
 .exmv button{display:flex;align-items:center;justify-content:center;width:34px;height:36px;font-size:0;color:rgba(255,255,255,.6)}
@@ -1192,12 +1212,12 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
     main.innerHTML=h;updatePaceBox();
   }
 
-  var histView="log",openCards={},menuFor=null,menuTop=0,freshCard=null,confirmRep=false;
+  var histView="log",openRec={},freshRec=null,recMetric="top",openCards={},menuFor=null,menuTop=0,freshCard=null,confirmRep=false;
   function e1rm(a){var m=0;(a||[]).forEach(function(x){if(x.kg>0&&x.reps>0){var v=x.kg*(1+x.reps/30);if(v>m)m=v}});return Math.round(m)}
   function histStats(){
     var chron=state.sessions.slice().sort(function(a,b){return a.date===b.date?(a.id<b.id?-1:1):(a.date<b.date?-1:1)});
     var best={},prs={},rec={};
-    histEx().forEach(function(e){rec[e.id]={best:null,date:"",e1:0,series:[],isNew:false}});
+    histEx().forEach(function(e){rec[e.id]={best:null,date:"",e1:0,series:[],pts:[],isNew:false}});
     chron.forEach(function(x){
       histEx().forEach(function(e){
         var a=x.sets&&x.sets[e.id];if(!a||!a.length)return;
@@ -1205,10 +1225,30 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
         if(top===null)return;
         if(r.best!==null&&top>r.best){(prs[x.id]=prs[x.id]||[]).push({ex:e.name,kg:top})}
         if(r.best===null||top>r.best){r.best=top;r.date=x.date;r.isNew=r.series.length>0}else{r.isNew=false}
-        r.series.push(top);var q=e1rm(a);if(q>r.e1)r.e1=q;
+        r.series.push(top);var q=e1rm(a);if(q>r.e1)r.e1=q;r.pts.push({date:x.date,top:top,e1:q});
       });
     });
     return {prs:prs,rec:rec};
+  }
+  function liftChart(r){
+    var pts=r.pts||[];
+    if(pts.length<2)return '<div class="help">Log this lift again to see your trend.</div>';
+    pts=pts.slice(-16);
+    var key=recMetric==="e1"?"e1":"top",vals=pts.map(function(q){return q[key]});
+    var W=340,H=160,L=34,R=12,T=16,B=26,mn=Math.min.apply(null,vals),mx=Math.max.apply(null,vals),pad=Math.max(1,(mx-mn)*0.25),lo=Math.max(0,mn-pad),hi=mx+pad;
+    var x=function(i){return L+(W-L-R)*(i/(pts.length-1))},y=function(v){return T+(H-T-B)*(1-(v-lo)/(hi-lo))};
+    var fmt=function(v){return String(Math.round(v*10)/10)};
+    var svg='<svg class="lc" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(recMetric==="e1"?"Estimated 1RM":"Best weight")+' per session"><defs><linearGradient id="lcg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d4ff00" stop-opacity=".22"/><stop offset="1" stop-color="#d4ff00" stop-opacity="0"/></linearGradient></defs>';
+    [lo,(lo+hi)/2,hi].forEach(function(v){svg+='<line class="lg" x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v).toFixed(1)+'" y2="'+y(v).toFixed(1)+'"/><text class="la" x="'+(L-6)+'" y="'+(y(v)+3).toFixed(1)+'" text-anchor="end">'+fmt(v)+'</text>'});
+    var line=vals.map(function(v,i){return x(i).toFixed(1)+","+y(v).toFixed(1)}).join(" ");
+    svg+='<polygon points="'+x(0).toFixed(1)+","+(H-B)+" "+line+" "+x(pts.length-1).toFixed(1)+","+(H-B)+'" fill="url(#lcg)"/>';
+    svg+='<polyline class="ll" points="'+line+'"/>';
+    vals.forEach(function(v,i){if(i<vals.length-1)svg+='<circle class="lp" cx="'+x(i).toFixed(1)+'" cy="'+y(v).toFixed(1)+'" r="2.5"/>'});
+    var lx=x(vals.length-1).toFixed(1),ly=y(vals[vals.length-1]).toFixed(1);
+    svg+='<circle class="lh" cx="'+lx+'" cy="'+ly+'" r="8"/><circle class="le" cx="'+lx+'" cy="'+ly+'" r="4.5"/>';
+    svg+='<text class="la" x="'+L+'" y="'+(H-7)+'">'+esc(fmtShort(pts[0].date))+'</text><text class="la" x="'+(W-R)+'" y="'+(H-7)+'" text-anchor="end">'+esc(fmtShort(pts[pts.length-1].date))+'</text></svg>';
+    var first=vals[0],last=vals[vals.length-1],d=Math.round((last-first)*10)/10;
+    return '<div class="lcstats"><span><b>'+fmt(Math.max.apply(null,vals))+'</b> kg best</span><span><b>'+pts.length+'</b> sessions</span><span class="'+(d>0?'up':'')+'"><b>'+(d>0?'+':'')+fmt(d)+'</b> kg since '+esc(fmtShort(pts[0].date))+'</span></div>'+svg;
   }
   function sparkSvg(v){
     if(v.length<2)return '<span class="spark0"></span>';
@@ -1259,7 +1299,9 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
       if(showGym&&s.length){anyOut=true;h+='<h3 class="subh">Strength</h3>';
         histEx().forEach(function(e){
           var r=st.rec[e.id];
-          h+='<div class="card recrow"><div class="rl"><b>'+esc(e.name)+(r.isNew?' <span class="prb">PR</span>':'')+'</b><span class="last">'+(r.best!==null?esc(parseISO(r.date).toLocaleDateString('en-GB',{day:'numeric',month:'short'}))+(r.e1?' · 1RM '+r.e1+' kg':''):'No data yet')+'</span></div>'+sparkSvg(r.series)+'<div class="rb"><b>'+(r.best!==null?r.best:"–")+'</b><span>kg best</span></div></div>';
+          var can=r.best!==null,ro=can&&!!openRec[e.id];
+          h+='<div class="card recrow'+(ro?' open':'')+'"'+(can?' data-rec="'+esc(e.id)+'" role="button" tabindex="0" aria-expanded="'+ro+'"':' style="cursor:default"')+'><div class="rl"><b>'+esc(e.name)+(r.isNew?' <span class="prb">PR</span>':'')+'</b><span class="last">'+(r.best!==null?esc(parseISO(r.date).toLocaleDateString('en-GB',{day:'numeric',month:'short'}))+(r.e1?' · 1RM '+r.e1+' kg':''):'No data yet')+'</span></div>'+sparkSvg(r.series)+'<div class="rb"><b>'+(r.best!==null?r.best:"–")+'</b><span>kg best</span></div>'+(can?'<span class="rchev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>':'')+
+            (ro?'<div class="cdet recdet'+(freshRec===e.id?' fresh':'')+'"><div class="rmseg"><button class="chip" data-rm="top" aria-pressed="'+(recMetric==="top")+'">Best weight</button><button class="chip" data-rm="e1" aria-pressed="'+(recMetric==="e1")+'">Est. 1RM</button></div>'+liftChart(r)+'</div>':'')+'</div>';
         });
       }
       var cr=cardioRecs().filter(function(c){return histFilter==="all"||c.act===histFilter});
@@ -1461,16 +1503,21 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
   }
   main.addEventListener("keydown",function(ev){
     if(ev.key!=="Enter"&&ev.key!==" ")return;
+    var rk=ev.target.closest&&ev.target.closest("[data-rec]");
+    if(rk&&ev.target===rk){ev.preventDefault();var ri=rk.dataset.rec;openRec[ri]=!openRec[ri];freshRec=openRec[ri]?ri:null;render();return}
     var tg=ev.target.closest&&ev.target.closest('[data-act="toggle"]');
     if(tg&&ev.target===tg){ev.preventDefault();toggleCard(tg)}
   });
   main.addEventListener("click",function(ev){
     if(ev.target.classList&&ev.target.classList.contains("hapov")){var hb=ev.target.previousElementSibling;ev.target.checked=false;try{ev.target.blur()}catch(e){}if(hb&&!hb.disabled)hb.click();return}
+    var rcd=ev.target.closest("[data-rec]");
+    if(rcd&&!ev.target.closest("button")){var rid=rcd.dataset.rec;openRec[rid]=!openRec[rid];freshRec=openRec[rid]?rid:null;render();return}
     var cd=ev.target.closest("[data-card]");
     if(cd&&!ev.target.closest("button")){var cid=cd.dataset.card;openCards[cid]=!openCards[cid];freshCard=openCards[cid]?cid:null;render();return}
     var tg=ev.target.closest('[data-act="toggle"]');
     if(tg&&!ev.target.closest("button")){toggleCard(tg);return}
     var t=ev.target.closest("button");if(!t)return;
+    if(t.dataset.rm){recMetric=t.dataset.rm;freshRec=null;render();return}
     if(t.dataset.rp){openRestSheet(t.dataset.rp);return}
     if(t.dataset.rest){restClick(t.dataset.rest);return}
     if(t.dataset.wk){setWorkout(t.dataset.wk);render();window.scrollTo(0,0);return}
