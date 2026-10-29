@@ -330,7 +330,8 @@ body.navhide .tabs,body.kb .tabs{transform:translateY(14px) scale(.94);opacity:0
 @keyframes cdin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 .recrow{flex-direction:row;align-items:center;gap:12px;padding:12px 14px}
 .recrow .rl{flex:1 1 0;min-width:0;display:flex;flex-direction:column}
-.recrow .rl .last{white-space:nowrap}
+.recrow .rl .last{white-space:normal;line-height:1.3}
+.recrow>svg{width:52px;height:auto;flex:none}
 .recrow .rl b{font:700 15.5px var(--body);display:flex;align-items:center;gap:8px}
 .recrow .rb{text-align:right;min-width:62px}
 .recrow .rb b{display:block;font:800 22px var(--body);letter-spacing:-.02em}
@@ -1212,7 +1213,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     main.innerHTML=h;updatePaceBox();
   }
 
-  var histView="log",openRec={},freshRec=null,recMetric="top",openCards={},menuFor=null,menuTop=0,freshCard=null,confirmRep=false;
+  var histView="log",openRec={},freshRec=null,recMetric="top",cardMetric="m",openCards={},menuFor=null,menuTop=0,freshCard=null,confirmRep=false;
   function e1rm(a){var m=0;(a||[]).forEach(function(x){if(x.kg>0&&x.reps>0){var v=x.kg*(1+x.reps/30);if(v>m)m=v}});return Math.round(m)}
   function histStats(){
     var chron=state.sessions.slice().sort(function(a,b){return a.date===b.date?(a.id<b.id?-1:1):(a.date<b.date?-1:1)});
@@ -1230,25 +1231,44 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     });
     return {prs:prs,rec:rec};
   }
+  // lime line graph with soft fill. flip=true puts lower numbers at the top (pace: faster is higher)
+  function lineSvg(o){
+    var vals=o.vals,dates=o.dates,n=vals.length,fmt=o.fmt;
+    var W=340,H=160,L=36,R=12,T=16,B=26,mn=Math.min.apply(null,vals),mx=Math.max.apply(null,vals),pad=Math.max(o.minPad||1,(mx-mn)*0.25),lo=Math.max(0,mn-pad),hi=mx+pad;
+    var x=function(i){return L+(W-L-R)*(i/(n-1))},y=function(v){var f=(v-lo)/(hi-lo);return T+(H-T-B)*(o.flip?f:1-f)};
+    var svg='<svg class="lc" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(o.aria)+'"><defs><linearGradient id="'+o.id+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d4ff00" stop-opacity=".22"/><stop offset="1" stop-color="#d4ff00" stop-opacity="0"/></linearGradient></defs>';
+    [lo,(lo+hi)/2,hi].forEach(function(v){svg+='<line class="lg" x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v).toFixed(1)+'" y2="'+y(v).toFixed(1)+'"/><text class="la" x="'+(L-6)+'" y="'+(y(v)+3).toFixed(1)+'" text-anchor="end">'+esc(fmt(v))+'</text>'});
+    var line=vals.map(function(v,i){return x(i).toFixed(1)+","+y(v).toFixed(1)}).join(" ");
+    svg+='<polygon points="'+x(0).toFixed(1)+","+(H-B)+" "+line+" "+x(n-1).toFixed(1)+","+(H-B)+'" fill="url(#'+o.id+')"/>';
+    svg+='<polyline class="ll" points="'+line+'"/>';
+    vals.forEach(function(v,i){if(i<n-1)svg+='<circle class="lp" cx="'+x(i).toFixed(1)+'" cy="'+y(v).toFixed(1)+'" r="2.5"/>'});
+    var lx=x(n-1).toFixed(1),ly=y(vals[n-1]).toFixed(1);
+    svg+='<circle class="lh" cx="'+lx+'" cy="'+ly+'" r="8"/><circle class="le" cx="'+lx+'" cy="'+ly+'" r="4.5"/>';
+    return svg+'<text class="la" x="'+L+'" y="'+(H-7)+'">'+esc(fmtShort(dates[0]))+'</text><text class="la" x="'+(W-R)+'" y="'+(H-7)+'" text-anchor="end">'+esc(fmtShort(dates[n-1]))+'</text></svg>';
+  }
   function liftChart(r){
     var pts=r.pts||[];
     if(pts.length<2)return '<div class="help">Log this lift again to see your trend.</div>';
     pts=pts.slice(-16);
     var key=recMetric==="e1"?"e1":"top",vals=pts.map(function(q){return q[key]});
-    var W=340,H=160,L=34,R=12,T=16,B=26,mn=Math.min.apply(null,vals),mx=Math.max.apply(null,vals),pad=Math.max(1,(mx-mn)*0.25),lo=Math.max(0,mn-pad),hi=mx+pad;
-    var x=function(i){return L+(W-L-R)*(i/(pts.length-1))},y=function(v){return T+(H-T-B)*(1-(v-lo)/(hi-lo))};
     var fmt=function(v){return String(Math.round(v*10)/10)};
-    var svg='<svg class="lc" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(recMetric==="e1"?"Estimated 1RM":"Best weight")+' per session"><defs><linearGradient id="lcg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d4ff00" stop-opacity=".22"/><stop offset="1" stop-color="#d4ff00" stop-opacity="0"/></linearGradient></defs>';
-    [lo,(lo+hi)/2,hi].forEach(function(v){svg+='<line class="lg" x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v).toFixed(1)+'" y2="'+y(v).toFixed(1)+'"/><text class="la" x="'+(L-6)+'" y="'+(y(v)+3).toFixed(1)+'" text-anchor="end">'+fmt(v)+'</text>'});
-    var line=vals.map(function(v,i){return x(i).toFixed(1)+","+y(v).toFixed(1)}).join(" ");
-    svg+='<polygon points="'+x(0).toFixed(1)+","+(H-B)+" "+line+" "+x(pts.length-1).toFixed(1)+","+(H-B)+'" fill="url(#lcg)"/>';
-    svg+='<polyline class="ll" points="'+line+'"/>';
-    vals.forEach(function(v,i){if(i<vals.length-1)svg+='<circle class="lp" cx="'+x(i).toFixed(1)+'" cy="'+y(v).toFixed(1)+'" r="2.5"/>'});
-    var lx=x(vals.length-1).toFixed(1),ly=y(vals[vals.length-1]).toFixed(1);
-    svg+='<circle class="lh" cx="'+lx+'" cy="'+ly+'" r="8"/><circle class="le" cx="'+lx+'" cy="'+ly+'" r="4.5"/>';
-    svg+='<text class="la" x="'+L+'" y="'+(H-7)+'">'+esc(fmtShort(pts[0].date))+'</text><text class="la" x="'+(W-R)+'" y="'+(H-7)+'" text-anchor="end">'+esc(fmtShort(pts[pts.length-1].date))+'</text></svg>';
-    var first=vals[0],last=vals[vals.length-1],d=Math.round((last-first)*10)/10;
+    var svg=lineSvg({vals:vals,dates:pts.map(function(q){return q.date}),fmt:fmt,id:"lcg",aria:(recMetric==="e1"?"Estimated 1RM":"Best weight")+" per session"});
+    var d=Math.round((vals[vals.length-1]-vals[0])*10)/10;
     return '<div class="lcstats"><span><b>'+fmt(Math.max.apply(null,vals))+'</b> kg best</span><span><b>'+pts.length+'</b> sessions</span><span class="'+(d>0?'up':'')+'"><b>'+(d>0?'+':'')+fmt(d)+'</b> kg since '+esc(fmtShort(pts[0].date))+'</span></div>'+svg;
+  }
+  function cardioChart(c){
+    var A=ACTS[c.act],pts=(c.pts||[]).slice(-16),hi=!!HIGHER[c.act],dist=cardMetric==="d";
+    if(pts.length<2)return '<div class="help">Log this again to see your trend.</div>';
+    var dn=function(km){return c.act==="Row"?km*1000:km};
+    var vals=pts.map(function(q){return dist?dn(q.km):q.m});
+    var fmt=dist?function(v){return c.act==="Row"||c.act==="Stairs"?Math.round(v).toLocaleString("en-GB"):String(Math.round(v*100)/100)}:(hi?function(v){return (Math.round(v*10)/10).toFixed(1)}:fmtPace);
+    var unit=dist?(c.act==="Row"?"m":c.act==="Stairs"?"floors":"km"):A.per;
+    var svg=lineSvg({vals:vals,dates:pts.map(function(q){return q.date}),fmt:fmt,id:"lcc",flip:!dist&&!hi,minPad:dist?(c.act==="Row"?25:c.act==="Stairs"?2:0.2):(hi?0.3:5),aria:(dist?"Distance":A.pl)+" per session"+(!dist&&!hi?", faster is higher":"")});
+    var first=vals[0],last=vals[vals.length-1],d=last-first,better=dist||hi?d>0:d<0,txt;
+    if(!dist&&!hi)txt='<b>'+fmtPace(Math.abs(d))+'</b> '+(d<=0?'faster':'slower');
+    else txt='<b>'+(d>0?'+':d<0?'−':'')+fmt(Math.abs(d))+'</b> '+unit;
+    var best=dist?Math.max.apply(null,vals):(hi?Math.max.apply(null,vals):Math.min.apply(null,vals));
+    return '<div class="lcstats"><span><b>'+esc(fmt(best))+'</b> '+(dist?unit+' longest':unit+' best')+'</span><span><b>'+pts.length+'</b> sessions</span><span class="'+(better&&Math.abs(d)>0?'up':'')+'">'+txt+' since '+esc(fmtShort(pts[0].date))+'</span></div>'+svg;
   }
   function sparkSvg(v){
     if(v.length<2)return '<span class="spark0"></span>';
@@ -1276,7 +1296,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
       if(!rs.length)return;
       var hi=!!HIGHER[act],best=null,longest=0;
       rs.forEach(function(r){var m=metricOf(act,r.km,r.secs);if(best===null||(hi?m>best.m:m<best.m))best={m:m,r:r};if(r.km>longest)longest=r.km});
-      out.push({act:act,best:best,longest:longest,n:rs.length,isNew:rs.length>1&&best.r===rs[rs.length-1],series:rs.map(function(r){var m=metricOf(act,r.km,r.secs);return hi?m:-m})});
+      out.push({act:act,best:best,longest:longest,n:rs.length,isNew:rs.length>1&&best.r===rs[rs.length-1],series:rs.map(function(r){var m=metricOf(act,r.km,r.secs);return hi?m:-m}),pts:rs.map(function(r){return {date:r.date,m:metricOf(act,r.km,r.secs),km:r.km}})});
     });
     return out;
   }
@@ -1308,7 +1328,9 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
       if(cr.length){anyOut=true;h+='<h3 class="subh">Cardio</h3>';
         cr.forEach(function(c){
           var A=ACTS[c.act],lc=NOUN[c.act];
-          h+='<div class="card recrow"><div class="rl"><b>'+esc(c.act)+(c.isNew?' <span class="prb">PR</span>':'')+'</b><span class="last">Longest '+esc(fmtDist(c.act,c.longest))+' · '+c.n+' logged</span></div>'+sparkSvg(c.series)+'<div class="rb"><b>'+fmtMetric(c.act,c.best.r.km,c.best.r.secs)+'</b><span>'+esc(A.per)+' best</span></div></div>';
+          var cid="c:"+c.act,co=!!openRec[cid];
+          h+='<div class="card recrow'+(co?' open':'')+'" data-rec="'+esc(cid)+'" role="button" tabindex="0" aria-expanded="'+co+'"><div class="rl"><b>'+esc(c.act)+(c.isNew?' <span class="prb">PR</span>':'')+'</b><span class="last">Longest '+esc(fmtDist(c.act,c.longest))+' · '+c.n+' logged</span></div>'+sparkSvg(c.series)+'<div class="rb"><b>'+fmtMetric(c.act,c.best.r.km,c.best.r.secs)+'</b><span>'+esc(A.per)+' best</span></div><span class="rchev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>'+
+            (co?'<div class="cdet recdet'+(freshRec===cid?' fresh':'')+'"><div class="rmseg"><button class="chip" data-cm="m" aria-pressed="'+(cardMetric==="m")+'">'+esc(A.pl)+'</button><button class="chip" data-cm="d" aria-pressed="'+(cardMetric==="d")+'">Distance</button></div>'+cardioChart(c)+'</div>':'')+'</div>';
           if(ACTS[histFilter]){
             h+='<section class="card"><h3>'+(histFilter==="Stairs"?'Floors':'Kilometres')+' per week ('+lc+')</h3>'+weeklyChart(histFilter)+'</section>';
             h+='<section class="card"><h3>'+(histFilter==="Row"?'Split trend (lower is faster)':HIGHER[histFilter]?(histFilter==="Stairs"?'Floors per minute trend (higher is faster)':'Speed trend (higher is faster)'):'Pace trend (lower is faster)')+'</h3>'+paceChart(histFilter)+'</section>';
@@ -1517,6 +1539,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     var tg=ev.target.closest('[data-act="toggle"]');
     if(tg&&!ev.target.closest("button")){toggleCard(tg);return}
     var t=ev.target.closest("button");if(!t)return;
+    if(t.dataset.cm){cardMetric=t.dataset.cm;freshRec=null;render();return}
     if(t.dataset.rm){recMetric=t.dataset.rm;freshRec=null;render();return}
     if(t.dataset.rp){openRestSheet(t.dataset.rp);return}
     if(t.dataset.rest){restClick(t.dataset.rest);return}
