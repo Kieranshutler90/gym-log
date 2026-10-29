@@ -436,21 +436,23 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
 .card.min.alldone .excount{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .primary.armed{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
 .wkpick{margin:-2px 0 0}
-#rest{position:fixed;top:calc(var(--sat,env(safe-area-inset-top,0px)) + 6px);left:50%;width:min(calc(100vw - 32px),340px);height:46px;transform:translateX(-50%);z-index:16;display:flex;align-items:center;gap:8px;padding:0 6px 0 18px;border-radius:9999px;overflow:hidden;background:rgba(8,10,13,.94);border:1px solid rgba(212,255,0,.4);box-shadow:0 10px 30px -6px rgba(0,0,0,.7),0 0 0 1px rgba(0,0,0,.4);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);animation:restin .32s cubic-bezier(.16,1,.3,1)}
-#rest[hidden]{display:none}
-body.resting .todayhead,body.resting header h1{visibility:hidden}
-#rest .rt{font:800 22px var(--display);font-variant-numeric:tabular-nums;letter-spacing:.01em;min-width:54px;color:var(--ink)}
-#rest .rn{flex:1;min-width:0;font:600 11.5px var(--body);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#rest button{min-height:34px;flex:none;border-radius:9999px;border:0;background:rgba(255,255,255,.1);color:var(--ink);font:700 13px var(--body);padding:0 13px}
-#rest button:active{transform:scale(.94)}
-#rest .rprog{position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--accent);border-radius:0 3px 3px 0;transition:width .25s linear}
-#rest.over{background:var(--accent);border-color:var(--accent);animation:restin .32s cubic-bezier(.16,1,.3,1),restpulse 1s ease-in-out .3s 3}
-#rest.over .rt,#rest.over .rn{color:var(--accent-ink)}
-#rest.over button{background:rgba(10,16,6,.16);color:var(--accent-ink)}
-#rest.over .rprog{display:none}
-@keyframes restin{from{opacity:0;transform:translateX(-50%) translateY(-14px) scale(.7)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}
-@keyframes restpulse{0%,100%{box-shadow:0 10px 30px -6px rgba(0,0,0,.7),0 0 0 0 rgba(212,255,0,.55)}50%{box-shadow:0 10px 30px -6px rgba(0,0,0,.7),0 0 0 9px rgba(212,255,0,0)}}
-@media (prefers-reduced-motion:reduce){#rest,#rest.over{animation:none}#rest .rprog,.exchev{transition:none}}
+.restrow{display:flex;align-items:center;gap:10px;min-height:38px;padding:0 6px 0 14px;border-radius:12px;background:rgba(212,255,0,.07);border:1px solid rgba(212,255,0,.24);overflow:hidden;animation:restexp .3s cubic-bezier(.16,1,.3,1)}
+.restrow.noanim{animation:none}
+.restrow .rl{font:700 10.5px var(--body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.restrow .rt{font:800 17px var(--body);font-variant-numeric:tabular-nums;min-width:38px;color:var(--ink)}
+.restrow .rbar{flex:1;min-width:20px;height:4px;border-radius:2px;background:rgba(255,255,255,.1);overflow:hidden}
+.restrow .rbar i{display:block;height:100%;width:100%;background:var(--accent);border-radius:2px;transition:width .25s linear}
+.restrow button{flex:none;min-height:30px;border:0;border-radius:9999px;background:rgba(255,255,255,.1);color:var(--ink);font:700 12.5px var(--body);padding:0 11px}
+.restrow button:active{transform:scale(.94)}
+.restrow.over{background:var(--accent);border-color:var(--accent);animation:restpulse 1s ease-in-out 3}
+.restrow.over .rl,.restrow.over .rt{color:var(--accent-ink)}
+.restrow.over .rbar{display:none}
+.restrow.over .rl{flex:1}
+.restrow.over button{background:rgba(10,16,6,.16);color:var(--accent-ink)}
+.card.min .restrow{display:none}
+@keyframes restexp{from{opacity:0;max-height:0;min-height:0;transform:scaleY(.5)}to{opacity:1;max-height:48px;transform:scaleY(1)}}
+@keyframes restpulse{0%,100%{box-shadow:0 0 0 0 rgba(212,255,0,.5)}50%{box-shadow:0 0 0 7px rgba(212,255,0,0)}}
+@media (prefers-reduced-motion:reduce){.restrow,.restrow.over{animation:none}.restrow .rbar i,.exchev{transition:none}}
 </style>
 </head>
 <body>
@@ -482,7 +484,6 @@ body.resting .todayhead,body.resting header h1{visibility:hidden}
 <input type="file" id="scanfile" accept="image/*" hidden>
 <input type="file" id="importfile" accept="application/json,.json" hidden>
 <div class="toast" id="toast" hidden></div>
-<div id="rest" hidden role="timer"><span class="rt" id="rtime2">1:30</span><span class="rn" id="rname"></span><button type="button" data-rest="add">+30s</button><button type="button" data-rest="skip">Skip</button><i class="rprog" id="rprog"></i></div>
 
 <script src="firebase-config.js"></script>
 <script>
@@ -661,7 +662,7 @@ body.resting .todayhead,body.resting header h1{visibility:hidden}
     });
     if(scrollToOpen&&open){
       var el=main.querySelector('[data-ex="'+open+'"]'),hdr=document.querySelector("header");
-      if(el){var rs=$("#rest"),off=Math.max(hdr?hdr.offsetHeight:0,rs&&!rs.hidden?rs.offsetTop+rs.offsetHeight:0),top=el.getBoundingClientRect().top+(window.pageYOffset||0)-off-12;try{window.scrollTo({top:Math.max(0,top),behavior:"smooth"})}catch(e){window.scrollTo(0,Math.max(0,top))}}
+      if(el){var off=hdr?hdr.offsetHeight:0,top=el.getBoundingClientRect().top+(window.pageYOffset||0)-off-12;try{window.scrollTo({top:Math.max(0,top),behavior:"smooth"})}catch(e){window.scrollTo(0,Math.max(0,top))}}
     }
   }
   var openDay=todayISO();
@@ -738,7 +739,7 @@ body.resting .todayhead,body.resting header h1{visibility:hidden}
   function buzz(){haptic();pop()}
 
   /* ---------- rest timer ---------- */
-  var rest={end:0,total:0,iv:0,hide:0,on:false};
+  var rest={end:0,total:0,iv:0,hide:0,on:false,over:false,show:false,anchor:null};
   function restSecs(e){
     if(e.restSec>0)return e.restSec;
     var t=e.rest||"",m=/(\d+(?:\.\d+)?)\s*min/i.exec(t);if(m)return Math.round(parseFloat(m[1])*60);
@@ -762,42 +763,54 @@ body.resting .todayhead,body.resting header h1{visibility:hidden}
   }
   function fmtRest(ms){var s=Math.max(0,Math.ceil(ms/1000));return Math.floor(s/60)+":"+pad(s%60)}
   function restPaint(){
-    var left=rest.end-Date.now(),el=$("#rest");if(!el)return;
-    $("#rtime2").textContent=fmtRest(left);
-    $("#rprog").style.width=Math.max(0,Math.min(100,100*left/rest.total))+"%";
+    var el=document.getElementById("rest");if(!el||!rest.on)return;
+    var left=rest.end-Date.now();
+    el.querySelector(".rt").textContent=fmtRest(left);
+    el.querySelector(".rbar i").style.width=Math.max(0,Math.min(100,100*left/rest.total))+"%";
   }
   function restTick(){
     if(!rest.on)return;
     if(rest.end-Date.now()<=0){restDone();return}
     restPaint();
   }
-  function restDone(){
-    clearInterval(rest.iv);rest.iv=0;rest.on=false;
-    var el=$("#rest");if(!el)return;
-    el.classList.add("over");$("#rtime2").textContent="Go";$("#rname").textContent="Rest over";
+  // the rest row lives inside the exercise card, right under the set that was just ticked
+  // (or at the top of the next exercise after its last set)
+  function mountRest(animate){
+    var old=document.getElementById("rest");if(old)old.parentNode.removeChild(old);
+    if(!rest.show||tab!=="today")return;
+    var a=rest.anchor,card=a&&main.querySelector('[data-ex="'+a.id+'"]');if(!card)return;
+    var row=a.before?card.querySelector(".setrow"):card.querySelector('.setrow[data-i="'+a.i+'"]');if(!row)return;
+    var el=document.createElement("div");
+    el.id="rest";el.className="restrow"+(animate?"":" noanim");el.setAttribute("role","timer");
+    el.innerHTML='<span class="rl">Rest</span><span class="rt"></span><span class="rbar"><i></i></span><button type="button" data-rest="add">+30s</button><button type="button" data-rest="skip">Skip</button>';
+    row.insertAdjacentElement(a.before?"beforebegin":"afterend",el);
+    if(rest.over)paintOver(el);else restPaint();
+  }
+  function paintOver(el){
+    el.classList.add("over");el.querySelector(".rl").textContent="Rest over";el.querySelector(".rt").textContent="Go";
     el.querySelector('[data-rest="add"]').hidden=true;el.querySelector('[data-rest="skip"]').textContent="Dismiss";
+  }
+  function restDone(){
+    clearInterval(rest.iv);rest.iv=0;rest.on=false;rest.over=true;
+    var el=document.getElementById("rest");if(el)paintOver(el);
     chime();
     clearTimeout(rest.hide);rest.hide=setTimeout(stopRest,6000);
   }
   function stopRest(){
-    clearInterval(rest.iv);rest.iv=0;rest.on=false;clearTimeout(rest.hide);
-    document.body.classList.remove("resting");
-    var el=$("#rest");if(el){el.hidden=true;el.classList.remove("over")}
+    clearInterval(rest.iv);rest.iv=0;rest.on=false;rest.over=false;rest.show=false;clearTimeout(rest.hide);
+    var el=document.getElementById("rest");if(el&&el.parentNode)el.parentNode.removeChild(el);
   }
-  function startRest(e){
-    var secs=restSecs(e),el=$("#rest");if(!el)return;
+  function startRest(e,anchor){
+    var secs=restSecs(e);
     clearInterval(rest.iv);clearTimeout(rest.hide);
-    rest.total=secs*1000;rest.end=Date.now()+rest.total;rest.on=true;
-    el.classList.remove("over");el.hidden=false;document.body.classList.add("resting");
-    el.querySelector('[data-rest="add"]').hidden=false;el.querySelector('[data-rest="skip"]').textContent="Skip";
-    $("#rname").textContent="Rest · "+e.name;
-    restPaint();rest.iv=setInterval(restTick,250);
+    rest.total=secs*1000;rest.end=Date.now()+rest.total;rest.on=true;rest.over=false;rest.show=true;rest.anchor=anchor;
+    mountRest(true);
+    rest.iv=setInterval(restTick,250);
   }
-  $("#rest").addEventListener("click",function(ev){
-    var b=ev.target.closest("button");if(!b)return;
-    if(b.dataset.rest==="add"&&rest.on){rest.end+=30000;rest.total+=30000;restPaint()}
+  function restClick(kind){
+    if(kind==="add"&&rest.on){rest.end+=30000;rest.total+=30000;restPaint()}
     else stopRest();
-  });
+  }
   document.addEventListener("visibilitychange",function(){
     if(document.hidden)return;
     restTick();
@@ -1081,7 +1094,7 @@ body.resting .todayhead,body.resting header h1{visibility:hidden}
     });
     h+='<div class="card"><label class="l" for="note">Notes (optional)</label><textarea id="note" rows="2" placeholder="How did it feel? Seat settings, anything to remember">'+esc(draft.note)+'</textarea></div>';
     h+=hw('<button class="primary" id="finish">Finish workout</button>','blk');
-    main.innerHTML=h;finishArmed=false;clearTimeout(finishArmT);updateProgress();
+    main.innerHTML=h;finishArmed=false;clearTimeout(finishArmT);updateProgress();mountRest(false);
   }
 
   function renderRuns(){
@@ -1371,6 +1384,7 @@ body.resting .todayhead,body.resting header h1{visibility:hidden}
     var tg=ev.target.closest('[data-act="toggle"]');
     if(tg&&!ev.target.closest("button")){toggleCard(tg);return}
     var t=ev.target.closest("button");if(!t)return;
+    if(t.dataset.rest){restClick(t.dataset.rest);return}
     if(t.dataset.wk){setWorkout(t.dataset.wk);render();window.scrollTo(0,0);return}
     if(t.dataset.wknew){
       var nw={id:uid(),name:nextRoutineName(),ex:BASE_EX.map(cloneEx),updated:Date.now()};
@@ -1440,7 +1454,10 @@ body.resting .todayhead,body.resting header h1{visibility:hidden}
       s.done=!s.done;saveDraft();row.classList.toggle("done",s.done);t.textContent=s.done?"✓":"";if(s.done)buzz();updateProgress();
       if(s.done){
         var cc=doneCount(),ex=EX.filter(function(z){return z.id===id2})[0];
-        if(cc.n<cc.t&&ex)startRest(ex);else stopRest();
+        if(cc.n<cc.t&&ex){
+          var nxId=exDone(id2)?firstOpenId():null;
+          startRest(ex,nxId?{id:nxId,before:true}:{id:id2,i:i,before:false});
+        }else stopRest();
         if(exDone(id2)){
           setTimeout(function(){
             if(!exDone(id2))return;
