@@ -648,6 +648,22 @@ body.kb #rest{opacity:0;pointer-events:none}
   function wkName(w){if(!w||w==="A")return "Workout A";var r=routineById(w);return r&&r.name?r.name:"Workout A"}
   function allEx(){var seen={},out=[];BASE_EX.concat([].concat.apply([],state.routines.map(routineEx))).forEach(function(e){if(!seen[e.id]){seen[e.id]=1;out.push(e)}});return out}
   function histEx(){return allEx().filter(function(e){return BASE_EX.some(function(b){return b.id===e.id})||state.sessions.some(function(x){return x.sets&&x.sets[e.id]&&x.sets[e.id].length})})}
+  function exDone(id){var a=draft.sets[id];return !!a&&a.length>0&&a.every(function(z){return z.done})}
+  function firstOpenId(){for(var i=0;i<EX.length;i++){if(!exDone(EX[i].id))return EX[i].id}return null}
+  function isMin(id){return collapsed[id]!==undefined?collapsed[id]:id!==firstOpenId()}
+  function applyCardStates(scrollToOpen){
+    var open=firstOpenId();
+    Array.prototype.forEach.call(main.querySelectorAll("[data-ex]"),function(c){
+      var m=isMin(c.dataset.ex);c.classList.toggle("min",m);
+      var hd=c.querySelector('[data-act="toggle"]');if(hd)hd.setAttribute("aria-expanded",m?"false":"true");
+    });
+    if(scrollToOpen&&open){
+      var el=main.querySelector('[data-ex="'+open+'"]'),hdr=document.querySelector("header");
+      if(el){var top=el.getBoundingClientRect().top+(window.pageYOffset||0)-(hdr?hdr.offsetHeight:0)-12;try{window.scrollTo({top:Math.max(0,top),behavior:"smooth"})}catch(e){window.scrollTo(0,Math.max(0,top))}}
+    }
+  }
+  var openDay=todayISO();
+  function refreshDate(){var t=todayISO();openDay=t;if(draft&&draft.date!==t){draft.date=t;saveDraft()}}
   function isUntouched(d){return !d||(!d.warm&&!d.note&&!Object.keys(d.sets||{}).some(function(k){return d.sets[k].some(function(z){return z.done})}))}
   function resolveWorkout(){
     var r=wk==="A"?null:routineById(wk),list=r?routineEx(r):BASE_EX;
@@ -666,6 +682,7 @@ body.kb #rest{opacity:0;pointer-events:none}
     if(w===wk)return;
     saveDraft();wk=w;lsSet(K.active,w);stopRest();collapsed={};
     resolveWorkout();draft=lsGet(draftKey(wk));fitDraft();
+    if(isUntouched(draft))refreshDate();
   }
   // a routine was edited: forget a not-yet-started draft for it so the new exercises/sets show up
   function dropStaleDraft(id){
@@ -778,7 +795,11 @@ body.kb #rest{opacity:0;pointer-events:none}
     if(b.dataset.rest==="add"&&rest.on){rest.end+=30000;rest.total+=30000;restPaint()}
     else stopRest();
   });
-  document.addEventListener("visibilitychange",function(){if(!document.hidden)restTick()});
+  document.addEventListener("visibilitychange",function(){
+    if(document.hidden)return;
+    restTick();
+    if(todayISO()!==openDay){refreshDate();if(tab==="today")render()}
+  });
   var finishArmed=false,finishArmT=0;
   function disarmFinish(){
     clearTimeout(finishArmT);finishArmed=false;
@@ -1045,7 +1066,7 @@ body.kb #rest{opacity:0;pointer-events:none}
     h+='<div class="card warm'+(draft.warm?' done':'')+'" id="warmcard">'+hw('<button class="chk" id="warm" aria-label="Warm-up done" style="width:52px">'+(draft.warm?'✓':'')+'</button>','wchk')+'<div><h2>Warm-up</h2><div class="last">5 min treadmill or bike, easy</div></div></div>';
     EX.forEach(function(e){
       var last=lastFor(e.id),ph=photos[e.id];
-      h+='<section class="card'+(collapsed[e.id]?' min':'')+'" data-ex="'+e.id+'"><div class="card-top" data-act="toggle" role="button" tabindex="0" aria-expanded="true" aria-label="'+esc(e.name)+', tap to collapse or expand"><div class="card-left"><button class="thumb" data-act="photo" aria-label="'+(ph?'View photo of ':'Add a photo of ')+esc(e.name)+'">'+(ph?'<img alt="'+esc(e.name)+'" src="'+ph+'">':'+ Photo')+'</button><h2>'+esc(e.name)+'</h2></div><div class="card-right"><span class="excount"></span><span class="target">'+e.sets+' × '+e.range+'</span><span class="exchev" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></div></div>';
+      h+='<section class="card'+(isMin(e.id)?' min':'')+'" data-ex="'+e.id+'"><div class="card-top" data-act="toggle" role="button" tabindex="0" aria-expanded="'+(isMin(e.id)?'false':'true')+'" aria-label="'+esc(e.name)+', tap to collapse or expand"><div class="card-left"><button class="thumb" data-act="photo" aria-label="'+(ph?'View photo of ':'Add a photo of ')+esc(e.name)+'">'+(ph?'<img alt="'+esc(e.name)+'" src="'+ph+'">':'+ Photo')+'</button><h2>'+esc(e.name)+'</h2></div><div class="card-right"><span class="excount"></span><span class="target">'+e.sets+' × '+e.range+'</span><span class="exchev" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></div></div>';
       h+='<div class="last">'+(last?'Last time: '+esc(fmtSets(last)):'First time. Start light, leave 2 reps in the tank.')+(e.rest?' · '+e.rest:'')+'</div>';
       draft.sets[e.id].forEach(function(s,i){
         h+='<div class="setrow'+(s.done?' done':'')+'" data-i="'+i+'"><span class="n">'+(i+1)+'</span>'+
@@ -1417,13 +1438,12 @@ body.kb #rest{opacity:0;pointer-events:none}
       if(s.done){
         var cc=doneCount(),ex=EX.filter(function(z){return z.id===id2})[0];
         if(cc.n<cc.t&&ex)startRest(ex);else stopRest();
-        if(draft.sets[id2].every(function(z){return z.done})){
+        if(exDone(id2)){
           setTimeout(function(){
-            var cEl=main.querySelector('[data-ex="'+id2+'"]');
-            if(cEl&&draft.sets[id2].every(function(z){return z.done})&&!cEl.classList.contains("min")){
-              cEl.classList.add("min");collapsed[id2]=true;
-              var hd=cEl.querySelector('[data-act="toggle"]');if(hd)hd.setAttribute("aria-expanded","false");
-            }
+            if(!exDone(id2))return;
+            delete collapsed[id2];
+            var nx=firstOpenId();if(nx)delete collapsed[nx];
+            applyCardStates(true);
           },500);
         }
       }
@@ -1451,7 +1471,7 @@ body.kb #rest{opacity:0;pointer-events:none}
   var cached=lsGet(K.data);if(cached){state.sessions=cached.sessions||[];state.runs=cached.runs||[];state.routines=cached.routines||[]}
   var cp=lsGet(K.photos);if(cp&&typeof cp==="object")photos=cp;
   var sw=lsGet(K.active);wk=typeof sw==="string"&&sw?sw:"A";
-  resolveWorkout();draft=lsGet(draftKey(wk));fitDraft();
+  resolveWorkout();draft=lsGet(draftKey(wk));fitDraft();refreshDate();
   runDraft=lsGet(K.runDraft);
   if(!runDraft||typeof runDraft!=="object"||!ACTS[runDraft.act])runDraft=newRunDraft(runDraft&&runDraft.act);
   if(ACTS[runDraft.act].types.indexOf(runDraft.type)<0)runDraft.type=ACTS[runDraft.act].defType;
