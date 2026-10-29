@@ -435,6 +435,7 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
 .card.min .thumb,.card.min .last,.card.min .setrow,.card.min .ghost{display:none}
 .card.min.alldone .excount{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .primary.armed{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
+.wkpick{margin:-2px 0 0}
 #rest{position:fixed;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));bottom:calc(86px + env(safe-area-inset-bottom,0px));max-width:340px;margin:0 auto;z-index:16;display:flex;align-items:center;gap:8px;padding:8px 8px 8px 18px;border-radius:9999px;overflow:hidden;background:rgba(18,20,24,.95);border:1px solid rgba(212,255,0,.45);box-shadow:0 12px 32px -8px rgba(0,0,0,.6);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);transition:bottom .25s cubic-bezier(.16,1,.3,1),opacity .2s ease}
 #rest[hidden]{display:none}
 #rest .rt{font:800 24px var(--display);font-variant-numeric:tabular-nums;letter-spacing:.01em;min-width:62px}
@@ -454,7 +455,7 @@ body.kb #rest{opacity:0;pointer-events:none}
 <div class="wrap">
   <header>
     <h1 id="ttl">Workout A</h1>
-    <div class="sub"><span>Workout A &amp; cardio</span><span aria-hidden="true">·</span><span class="sync"><i class="dot" id="dot"></i><span id="status">Saved on this phone</span></span></div>
+    <div class="sub"><span>Gym &amp; cardio</span><span aria-hidden="true">·</span><span class="sync"><i class="dot" id="dot"></i><span id="status">Saved on this phone</span></span></div>
     <div class="tabs" role="tablist" id="tabs">
       <button class="tab" role="tab" data-tab="today" aria-label="Today" aria-selected="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg><span>Today</span></button>
       <button class="tab" role="tab" data-tab="runs" aria-label="Cardio" aria-selected="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg><span>Cardio</span></button>
@@ -485,7 +486,7 @@ body.kb #rest{opacity:0;pointer-events:none}
 <script>
 (function(){
   "use strict";
-  var EX=[
+  var BASE_EX=[
     {id:"leg-press",name:"Leg press",sets:3,range:"10–12",rest:"Rest about 2 min"},
     {id:"leg-curl",name:"Seated leg curl",sets:3,range:"12"},
     {id:"chest-press",name:"Chest press machine",sets:3,range:"10–12"},
@@ -493,9 +494,10 @@ body.kb #rest{opacity:0;pointer-events:none}
     {id:"shoulder-press",name:"Shoulder press machine",sets:2,range:"10–12"},
     {id:"core",name:"Cable crunch / plank",sets:3,range:"12",unit:"reps or sec"}
   ];
+  var EX=BASE_EX, wk="A"; // EX = exercises of the workout being logged; wk = "A" (built in) or a routine id
   var REST_DEFAULT=90; // seconds, used when an exercise has no rest time of its own
   var TARGET_SECS_PER_KM=8100/21.0975; // sub 2:15 half marathon
-  var K={data:"gl-data-v2",photos:"gl-photos-v2",draft:"gl-draft-v2",runDraft:"gl-rundraft-v2",auth:"gl-auth-v1"};
+  var K={data:"gl-data-v2",photos:"gl-photos-v2",draft:"gl-draft-v2",active:"gl-active-v1",runDraft:"gl-rundraft-v2",auth:"gl-auth-v1"};
   var state={sessions:[],runs:[],routines:[]}, photos={}, draft=null, runDraft=null, tab="today", collapsed={};
   var confirmDel=null, pickFor=null, importText="";
   var cloud={ready:false,uid:null,email:null,db:null,unsubs:[],err:null,configured:false,loading:false};
@@ -529,7 +531,7 @@ body.kb #rest{opacity:0;pointer-events:none}
     var ok2=lsSet(K.photos,photos);
     if(!ok||!ok2)toast("Phone storage is full. Remove a photo or sync to the cloud.");
   }
-  function saveDraft(){lsSet(K.draft,draft)}
+  function saveDraft(){lsSet(draftKey(wk),draft)}
   function saveRunDraft(){lsSet(K.runDraft,runDraft)}
 
   /* ---------- cloud sync (Firebase, optional) ---------- */
@@ -638,8 +640,40 @@ body.kb #rest{opacity:0;pointer-events:none}
     var reps=a.map(function(x){return x.reps==null?"–":x.reps}).join(", ");
     return (top!==null?top+" kg × ":"")+reps;
   }
+  /* ---------- which workout is being logged ---------- */
+  function draftKey(w){return w==="A"?K.draft:"gl-draft-v2-"+w}
+  function routineById(id){return state.routines.filter(function(r){return r.id===id})[0]}
+  function cloneEx(e){var o={id:e.id,name:e.name,sets:e.sets,range:e.range};if(e.rest)o.rest=e.rest;if(e.unit)o.unit=e.unit;return o}
+  function routineEx(r){return (r&&r.ex||[]).filter(function(e){return e&&e.name&&String(e.name).trim()}).map(function(e){var o=cloneEx(e);o.sets=Math.max(1,Math.min(10,+e.sets||3));o.range=e.range||"10–12";return o})}
+  function wkName(w){if(!w||w==="A")return "Workout A";var r=routineById(w);return r&&r.name?r.name:"Workout A"}
+  function allEx(){var seen={},out=[];BASE_EX.concat([].concat.apply([],state.routines.map(routineEx))).forEach(function(e){if(!seen[e.id]){seen[e.id]=1;out.push(e)}});return out}
+  function histEx(){return allEx().filter(function(e){return BASE_EX.some(function(b){return b.id===e.id})||state.sessions.some(function(x){return x.sets&&x.sets[e.id]&&x.sets[e.id].length})})}
+  function isUntouched(d){return !d||(!d.warm&&!d.note&&!Object.keys(d.sets||{}).some(function(k){return d.sets[k].some(function(z){return z.done})}))}
+  function resolveWorkout(){
+    var r=wk==="A"?null:routineById(wk),list=r?routineEx(r):BASE_EX;
+    if(wk!=="A"&&!list.length){wk="A";list=BASE_EX;lsSet(K.active,"A")}
+    EX=list;
+  }
+  function fitDraft(){
+    if(!draft||!draft.sets){draft=newDraft();saveDraft();return}
+    var fresh=null,changed=false;
+    EX.forEach(function(e){if(!draft.sets[e.id]){fresh=fresh||newDraft();draft.sets[e.id]=fresh.sets[e.id];changed=true}});
+    Object.keys(draft.sets).forEach(function(k){if(!EX.some(function(e){return e.id===k})){delete draft.sets[k];changed=true}});
+    if(changed)saveDraft();
+  }
+  function syncWorkout(){var prev=wk;resolveWorkout();if(wk!==prev)draft=lsGet(draftKey(wk));fitDraft()}
+  function setWorkout(w){
+    if(w===wk)return;
+    saveDraft();wk=w;lsSet(K.active,w);stopRest();collapsed={};
+    resolveWorkout();draft=lsGet(draftKey(wk));fitDraft();
+  }
+  // a routine was edited: forget a not-yet-started draft for it so the new exercises/sets show up
+  function dropStaleDraft(id){
+    if(id===wk){if(isUntouched(draft))draft=null}
+    else{var d=lsGet(draftKey(id));if(d&&isUntouched(d)){try{localStorage.removeItem(draftKey(id))}catch(e){}}}
+  }
   function newDraft(){
-    var d={date:todayISO(),warm:false,note:"",sets:{}};collapsed={};
+    var d={date:todayISO(),warm:false,note:"",sets:{}};
     EX.forEach(function(e){
       var last=lastFor(e.id),arr=[];
       for(var i=0;i<e.sets;i++){
@@ -752,14 +786,14 @@ body.kb #rest{opacity:0;pointer-events:none}
   }
   function finishWorkout(){
     var c=doneCount();if(!c.n)return;buzz();
-    var rec={id:uid(),date:draft.date,warm:draft.warm,note:draft.note.trim(),sets:{}};
+    var rec={id:uid(),rid:wk,date:draft.date,warm:draft.warm,note:draft.note.trim(),sets:{}};
     EX.forEach(function(e){
       var a=draft.sets[e.id].filter(function(s){return s.done}).map(function(s){return {kg:num(s.kg),reps:num(s.reps)}});
       if(a.length)rec.sets[e.id]=a;
     });
     state.sessions=state.sessions.concat([rec]);
     saveLocal();cw("sessions",rec.id,rec);
-    draft=newDraft();saveDraft();stopRest();
+    collapsed={};draft=newDraft();saveDraft();stopRest();
     tab="hist";render();window.scrollTo(0,0);toast("Workout saved");
   }
 
@@ -1002,7 +1036,11 @@ body.kb #rest{opacity:0;pointer-events:none}
 
   /* ---------- rendering ---------- */
   function renderToday(){
-    var h='<div class="logtop todayhead"><h1 class="th">Workout A</h1><label class="datepill"><span id="dtxt2">'+esc(dateLabel(draft.date))+'</span><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg><input type="date" id="date" aria-label="Session date" value="'+esc(draft.date)+'"></label></div>';
+    var h='<div class="logtop todayhead"><h1 class="th">'+esc(wkName(wk))+'</h1><label class="datepill"><span id="dtxt2">'+esc(dateLabel(draft.date))+'</span><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg><input type="date" id="date" aria-label="Session date" value="'+esc(draft.date)+'"></label></div>';
+    var pk='<button class="chip" data-wk="A" aria-pressed="'+(wk==="A")+'">Workout A</button>',nr=0;
+    state.routines.forEach(function(r){if(routineEx(r).length){nr++;pk+='<button class="chip" data-wk="'+esc(r.id)+'" aria-pressed="'+(wk===r.id)+'">'+esc(r.name)+'</button>'}});
+    if(!nr)pk+='<button class="chip" data-wknew="1">+ '+esc(nextRoutineName())+'</button>';
+    h+='<div class="chips scrollrow wkpick" role="group" aria-label="Choose workout">'+pk+'</div>';
     h+='<div class="proginline"><div class="progress"><i id="prog"></i></div><span class="pl" id="proglabel"></span></div>';
     h+='<div class="card warm'+(draft.warm?' done':'')+'" id="warmcard">'+hw('<button class="chk" id="warm" aria-label="Warm-up done" style="width:52px">'+(draft.warm?'✓':'')+'</button>','wchk')+'<div><h2>Warm-up</h2><div class="last">5 min treadmill or bike, easy</div></div></div>';
     EX.forEach(function(e){
@@ -1054,9 +1092,9 @@ body.kb #rest{opacity:0;pointer-events:none}
   function histStats(){
     var chron=state.sessions.slice().sort(function(a,b){return a.date===b.date?(a.id<b.id?-1:1):(a.date<b.date?-1:1)});
     var best={},prs={},rec={};
-    EX.forEach(function(e){rec[e.id]={best:null,date:"",e1:0,series:[],isNew:false}});
+    histEx().forEach(function(e){rec[e.id]={best:null,date:"",e1:0,series:[],isNew:false}});
     chron.forEach(function(x){
-      EX.forEach(function(e){
+      histEx().forEach(function(e){
         var a=x.sets&&x.sets[e.id];if(!a||!a.length)return;
         var kgs=a.map(function(z){return z.kg}).filter(function(z){return z!=null}),top=kgs.length?Math.max.apply(null,kgs):null,r=rec[e.id];
         if(top===null)return;
@@ -1114,7 +1152,7 @@ body.kb #rest{opacity:0;pointer-events:none}
       h+=chipsHtml;
       var showGym=histFilter==="all"||histFilter==="gym",anyOut=false;
       if(showGym&&s.length){anyOut=true;h+='<h3 class="subh">Strength</h3>';
-        EX.forEach(function(e){
+        histEx().forEach(function(e){
           var r=st.rec[e.id];
           h+='<div class="card recrow"><div class="rl"><b>'+esc(e.name)+(r.isNew?' <span class="prb">PR</span>':'')+'</b><span class="last">'+(r.best!==null?esc(parseISO(r.date).toLocaleDateString('en-GB',{day:'numeric',month:'short'}))+(r.e1?' · 1RM '+r.e1+' kg':''):'No data yet')+'</span></div>'+sparkSvg(r.series)+'<div class="rb"><b>'+(r.best!==null?r.best:"–")+'</b><span>kg best</span></div></div>';
         });
@@ -1139,14 +1177,14 @@ body.kb #rest{opacity:0;pointer-events:none}
     if(!feed.length)h+='<div class="empty">Nothing here yet.</div>';
     feed.forEach(function(it){
       if(it.k==="r"){h+=runCard(it.x);return}
-      var x=it.x,total=0,names=[];EX.forEach(function(e){var a=x.sets&&x.sets[e.id];if(a&&a.length){total+=a.length;names.push(e.name)}});
+      var x=it.x,total=0,names=[];allEx().forEach(function(e){var a=x.sets&&x.sets[e.id];if(a&&a.length){total+=a.length;names.push(e.name)}});
       var pr=st.prs[x.id]||[],open=!!openCards[x.id];
-      h+='<div class="card hcard'+(open?' open':'')+'" data-card="'+esc(x.id)+'"><div class="htop"><div><b>'+esc(fmtDate(x.date))+'</b><span class="last">Workout A · '+total+' sets</span></div><button class="dots" data-menu="'+esc(x.id)+'" data-mk="gym" aria-label="Workout options"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button></div>'+
+      h+='<div class="card hcard'+(open?' open':'')+'" data-card="'+esc(x.id)+'"><div class="htop"><div><b>'+esc(fmtDate(x.date))+'</b><span class="last">'+esc(wkName(x.rid))+' · '+total+' sets</span></div><button class="dots" data-menu="'+esc(x.id)+'" data-mk="gym" aria-label="Workout options"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button></div>'+
         '<div class="hnames">'+esc(names.slice(0,3).join(" · "))+(names.length>3?' +'+(names.length-3):'')+'</div>'+
         '<div class="hfoot">'+(pr.length?'<span class="prb">PR · '+esc(pr[0].ex+' '+pr[0].kg+' kg')+(pr.length>1?' +'+(pr.length-1):'')+'</span>':'<span></span>')+'<span class="chev" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></div>';
       if(open){
         h+='<div class="cdet'+(freshCard===x.id?' fresh':'')+'"><ul class="list">';
-        EX.forEach(function(e){var a=x.sets&&x.sets[e.id];if(a&&a.length){var ip=pr.some(function(p){return p.ex===e.name});h+='<li><span>'+esc(e.name)+'</span><span>'+(ip?'<em class="prt">PR</em>':'')+esc(fmtSets(a))+'</span></li>'}});
+        allEx().forEach(function(e){var a=x.sets&&x.sets[e.id];if(a&&a.length){var ip=pr.some(function(p){return p.ex===e.name});h+='<li><span>'+esc(e.name)+'</span><span>'+(ip?'<em class="prt">PR</em>':'')+esc(fmtSets(a))+'</span></li>'}});
         h+='</ul>'+(x.note?'<div class="note">'+esc(x.note)+'</div>':'')+'</div>';
       }
       h+='</div>';
@@ -1160,8 +1198,12 @@ body.kb #rest{opacity:0;pointer-events:none}
   }
   function repeatWorkout(id){
     var x=state.sessions.filter(function(z){return z.id===id})[0];if(!x)return;
-    var dirty=draft.warm||EX.some(function(e){return draft.sets[e.id].some(function(z){return z.done})});
+    var tw=(x.rid&&(x.rid==="A"||(routineById(x.rid)&&routineEx(routineById(x.rid)).length)))?x.rid:"A";
+    var td=tw===wk?draft:lsGet(draftKey(tw));
+    var dirty=!!td&&!isUntouched(td);
     if(dirty&&!confirmRep){confirmRep=true;render();return}
+    if(tw!==wk)setWorkout(tw);
+    collapsed={};
     var d={date:todayISO(),warm:false,note:"",sets:{}};
     EX.forEach(function(e){
       var a=(x.sets&&x.sets[e.id])||[],arr=a.map(function(z){return {kg:z.kg!=null?z.kg:"",reps:z.reps!=null?z.reps:"",done:false}});
@@ -1175,12 +1217,12 @@ body.kb #rest{opacity:0;pointer-events:none}
   function chevR(){return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>'}
   /* ---------- routines (step 1: editor) ---------- */
   function slug(n){return String(n).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,24)||"exercise"}
-  function knownEx(){
-    var m={};EX.forEach(function(e){m[e.name.toLowerCase()]=e.id});
-    state.routines.forEach(function(r){r.ex.forEach(function(e){if(e.name&&!m[e.name.toLowerCase()])m[e.name.toLowerCase()]=e.id})});
+  function knownEx(skip){
+    var m={};BASE_EX.forEach(function(e){m[e.name.toLowerCase()]=e.id});
+    state.routines.forEach(function(r){r.ex.forEach(function(e){if(e!==skip&&e.name&&!m[e.name.toLowerCase()])m[e.name.toLowerCase()]=e.id})});
     return m;
   }
-  function saveRoutine(r){r.updated=Date.now();saveLocal();cw("routines",r.id,r)}
+  function saveRoutine(r){r.updated=Date.now();dropStaleDraft(r.id);saveLocal();cw("routines",r.id,r)}
   function nextRoutineName(){
     var used={"Workout A":1};state.routines.forEach(function(r){used[r.name]=1});
     for(var i=1;i<26;i++){var n="Workout "+String.fromCharCode(65+i);if(!used[n])return n}
@@ -1193,10 +1235,10 @@ body.kb #rest{opacity:0;pointer-events:none}
     var h="",r;
     if(acctView==="routines"){
       h+='<button class="backrow" id="acctback"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Account</button><h2 class="sh">Workouts</h2>';
-      h+='<div class="sgroup"><div class="srow"><div class="sl"><span>Workout A</span><small>Your current routine · '+EX.length+' exercises · built in</small></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>';
+      h+='<div class="sgroup"><div class="srow"><div class="sl"><span>Workout A</span><small>Your current routine · '+BASE_EX.length+' exercises · built in</small></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>';
       state.routines.forEach(function(x){h+='<button class="srow" data-ra="open" data-rid="'+esc(x.id)+'"><div class="sl"><span>'+esc(x.name)+'</span><small>'+x.ex.length+' exercise'+(x.ex.length===1?'':'s')+'</small></div>'+chevR()+'</button>'});
       h+='</div><div class="rowbtns"><button class="btn" data-ra="new">+ New routine</button><button class="btn" data-ra="copyA">+ Copy of Workout A</button></div>';
-      h+='<div class="help">Workout A stays exactly as it is. New routines show up in the Workout tab picker in the next update.</div>';
+      h+='<div class="help">Workout A stays exactly as it is. Switch between workouts with the chips at the top of the Workout tab.</div>';
       main.innerHTML=h;return;
     }
     r=curRoutine();if(!r){acctView="routines";return renderRoutines()}
@@ -1217,7 +1259,7 @@ body.kb #rest{opacity:0;pointer-events:none}
     var a=t.dataset.ra,i=+t.dataset.i,r=curRoutine();
     if(a==="open"){routineId=t.dataset.rid;acctView="routine";confirmDel=null;render();document.body.scrollTop=0;window.scrollTo(0,0);return}
     if(a==="new"||a==="copyA"){
-      var nr={id:uid(),name:nextRoutineName(),ex:a==="copyA"?EX.map(function(e){return {id:e.id,name:e.name,sets:e.sets,range:e.range}}):[blankEx()],updated:Date.now()};
+      var nr={id:uid(),name:nextRoutineName(),ex:a==="copyA"?BASE_EX.map(cloneEx):[blankEx()],updated:Date.now()};
       state.routines.push(nr);saveRoutine(nr);routineId=nr.id;acctView="routine";render();window.scrollTo(0,0);return;
     }
     if(!r)return;
@@ -1228,7 +1270,7 @@ body.kb #rest{opacity:0;pointer-events:none}
     if(a==="dn"&&i<r.ex.length-1){var y=r.ex[i];r.ex[i]=r.ex[i+1];r.ex[i+1]=y;saveRoutine(r);render();return}
     if(a==="sm"){r.ex[i].sets=Math.max(1,r.ex[i].sets-1);saveRoutine(r);render();return}
     if(a==="sp"){r.ex[i].sets=Math.min(10,r.ex[i].sets+1);saveRoutine(r);render();return}
-    if(a==="dup"){tidyRoutine();var c={id:uid(),name:nextRoutineName(),ex:r.ex.map(function(e){return {id:e.id,name:e.name,sets:e.sets,range:e.range}}),updated:Date.now()};state.routines.push(c);saveRoutine(c);routineId=c.id;render();toast("Duplicated as "+c.name);return}
+    if(a==="dup"){tidyRoutine();var c={id:uid(),name:nextRoutineName(),ex:r.ex.map(cloneEx),updated:Date.now()};state.routines.push(c);saveRoutine(c);routineId=c.id;render();toast("Duplicated as "+c.name);return}
     if(a==="del"){
       if(confirmDel==="r:"+r.id){state.routines=state.routines.filter(function(z){return z.id!==r.id});saveLocal();cw("routines",r.id,null);routineId=null;acctView="routines";confirmDel=null;render();toast("Routine deleted")}
       else{confirmDel="r:"+r.id;render()}
@@ -1260,8 +1302,9 @@ body.kb #rest{opacity:0;pointer-events:none}
   }
 
   function render(){
+    if(tab==="today")syncWorkout();
     Array.prototype.forEach.call(document.querySelectorAll(".tab"),function(b){b.setAttribute("aria-selected",b.dataset.tab===tab)});
-    var tt=$("#ttl");if(tt)tt.textContent=tab==="runs"?"Cardio":tab==="hist"?"History":tab==="acct"?"Account":"Workout A";
+    var tt=$("#ttl");if(tt)tt.textContent=tab==="runs"?"Cardio":tab==="hist"?"History":tab==="acct"?"Account":wkName(wk);
     document.body.dataset.tab=tab;document.body.classList.toggle("nohap",!hapticOn());
     if(tab==="today")renderToday();else if(tab==="runs")renderRuns();else if(tab==="hist")renderHist();else renderAcct();
   }
@@ -1304,6 +1347,12 @@ body.kb #rest{opacity:0;pointer-events:none}
     var tg=ev.target.closest('[data-act="toggle"]');
     if(tg&&!ev.target.closest("button")){toggleCard(tg);return}
     var t=ev.target.closest("button");if(!t)return;
+    if(t.dataset.wk){setWorkout(t.dataset.wk);render();window.scrollTo(0,0);return}
+    if(t.dataset.wknew){
+      var nw={id:uid(),name:nextRoutineName(),ex:BASE_EX.map(cloneEx),updated:Date.now()};
+      state.routines.push(nw);saveRoutine(nw);routineId=nw.id;acctView="routine";tab="acct";render();window.scrollTo(0,0);
+      toast(nw.name+" created as a copy of A. Change the exercises here.");return;
+    }
     if(t.dataset.hf){histFilter=t.dataset.hf;menuFor=null;render();return}
     if(t.dataset.hv){histView=t.dataset.hv;menuFor=null;render();return}
     if(t.dataset.menu){var r=t.getBoundingClientRect();menuFor=t.dataset.menu;menuIsRun=t.dataset.mk==="run";menuTop=Math.max(12,Math.min(r.bottom+4,window.innerHeight-130));confirmDel=null;confirmRep=false;render();return}
@@ -1381,7 +1430,7 @@ body.kb #rest{opacity:0;pointer-events:none}
     }
   });
   ["change","keyup","blur"].forEach(function(n){main.addEventListener(n,function(ev){if(ev.target&&ev.target.id==="rtime"&&n==="keyup"){return}updatePaceBox()},true)});
-  main.addEventListener("change",function(ev){var el=ev.target;if(el.dataset&&el.dataset.rf==="name"){var r3=curRoutine();if(r3){var ex=r3.ex[+el.dataset.i],m=knownEx(),k=el.value.trim().toLowerCase();if(ex&&m[k]){ex.id=m[k];saveRoutine(r3)}}}});
+  main.addEventListener("change",function(ev){var el=ev.target;if(el.dataset&&el.dataset.rf==="name"){var r3=curRoutine();if(r3){var ex=r3.ex[+el.dataset.i],m=knownEx(ex),k=el.value.trim().toLowerCase();if(ex&&m[k]){ex.id=m[k];saveRoutine(r3)}else if(ex&&k&&!/^x-/.test(ex.id)){ex.id="x-"+uid();saveRoutine(r3)}}}});
   main.addEventListener("input",function(ev){
     var el=ev.target;
     if(el.id==="note"){draft.note=el.value;saveDraft();return}
@@ -1401,8 +1450,8 @@ body.kb #rest{opacity:0;pointer-events:none}
   /* ---------- start ---------- */
   var cached=lsGet(K.data);if(cached){state.sessions=cached.sessions||[];state.runs=cached.runs||[];state.routines=cached.routines||[]}
   var cp=lsGet(K.photos);if(cp&&typeof cp==="object")photos=cp;
-  draft=lsGet(K.draft);
-  if(!draft||!draft.sets||EX.some(function(e){return !draft.sets[e.id]}))draft=newDraft();
+  var sw=lsGet(K.active);wk=typeof sw==="string"&&sw?sw:"A";
+  resolveWorkout();draft=lsGet(draftKey(wk));fitDraft();
   runDraft=lsGet(K.runDraft);
   if(!runDraft||typeof runDraft!=="object"||!ACTS[runDraft.act])runDraft=newRunDraft(runDraft&&runDraft.act);
   if(ACTS[runDraft.act].types.indexOf(runDraft.type)<0)runDraft.type=ACTS[runDraft.act].defType;
