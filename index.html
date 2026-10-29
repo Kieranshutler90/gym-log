@@ -436,6 +436,7 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
 .card.min.alldone .excount{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .primary.armed{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
 .wkpick{margin:-2px 0 0}
+.setrow input::placeholder{color:rgba(255,255,255,.3);opacity:1}
 /* ---- routine editor: matching capsules, vector icons, rest picker ---- */
 .exmv button{display:flex;align-items:center;justify-content:center;width:34px;height:36px;font-size:0;color:rgba(255,255,255,.6)}
 .exmv .x{color:rgba(255,122,102,.75)}
@@ -733,7 +734,7 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
       var last=lastFor(e.id),arr=[];
       for(var i=0;i<e.sets;i++){
         var l=last&&last[i]?last[i]:(last&&last.length?last[last.length-1]:null);
-        arr.push({kg:l&&l.kg!=null?l.kg:"",reps:l&&l.reps!=null?l.reps:"",done:false});
+        arr.push({kg:"",reps:"",gk:l&&l.kg!=null?l.kg:"",gr:l&&l.reps!=null?l.reps:"",done:false});
       }
       d.sets[e.id]=arr;
     });
@@ -1153,8 +1154,8 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
       h+='<div class="last">'+(last?'Last time: '+esc(fmtSets(last)):'First time. Start light, leave 2 reps in the tank.')+' · '+(restSecs(e)>0?'Rest '+fmtRest(restSecs(e)*1000):'No rest timer')+'</div>';
       draft.sets[e.id].forEach(function(s,i){
         h+='<div class="setrow'+(s.done?' done':'')+'" data-i="'+i+'"><span class="n">'+(i+1)+'</span>'+
-          '<label class="field"><span>kg</span><input type="number" inputmode="decimal" step="0.5" min="0" data-f="kg" value="'+esc(s.kg)+'" aria-label="'+esc(e.name)+' set '+(i+1)+' kilograms"></label>'+
-          '<label class="field"><span>'+(e.unit||"reps")+'</span><input type="number" inputmode="numeric" step="1" min="0" data-f="reps" value="'+esc(s.reps)+'" aria-label="'+esc(e.name)+' set '+(i+1)+' reps"></label>'+
+          '<label class="field"><span>kg</span><input type="number" inputmode="decimal" step="0.5" min="0" data-f="kg" value="'+esc(s.kg)+'" placeholder="'+esc(s.gk==null?"":s.gk)+'" aria-label="'+esc(e.name)+' set '+(i+1)+' kilograms"></label>'+
+          '<label class="field"><span>'+(e.unit||"reps")+'</span><input type="number" inputmode="numeric" step="1" min="0" data-f="reps" value="'+esc(s.reps)+'" placeholder="'+esc(s.gr==null?"":s.gr)+'" aria-label="'+esc(e.name)+' set '+(i+1)+' reps"></label>'+
           hw('<button class="chk" data-act="done" aria-label="Mark set '+(i+1)+' done">'+(s.done?'✓':'')+'</button>','schk')+'</div>';
       });
       h+='<button class="ghost" data-act="add">+ Add a set</button></section>';
@@ -1310,8 +1311,8 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
     collapsed={};
     var d={date:todayISO(),warm:false,note:"",sets:{}};
     EX.forEach(function(e){
-      var a=(x.sets&&x.sets[e.id])||[],arr=a.map(function(z){return {kg:z.kg!=null?z.kg:"",reps:z.reps!=null?z.reps:"",done:false}});
-      while(arr.length<e.sets)arr.push(arr.length?{kg:arr[arr.length-1].kg,reps:arr[arr.length-1].reps,done:false}:{kg:"",reps:"",done:false});
+      var a=(x.sets&&x.sets[e.id])||[],arr=a.map(function(z){return {kg:"",reps:"",gk:z.kg!=null?z.kg:"",gr:z.reps!=null?z.reps:"",done:false}});
+      while(arr.length<e.sets)arr.push(arr.length?{kg:"",reps:"",gk:arr[arr.length-1].gk,gr:arr[arr.length-1].gr,done:false}:{kg:"",reps:"",gk:"",gr:"",done:false});
       d.sets[e.id]=arr;
     });
     draft=d;saveDraft();menuFor=null;confirmRep=false;tab="today";render();window.scrollTo(0,0);toast("Copied. Tick sets as you go.");
@@ -1535,10 +1536,15 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
     var card=t.closest("[data-ex]");if(!card)return;
     var id2=card.dataset.ex;
     if(t.dataset.act==="photo"){if(photos[id2])openLightbox(id2);else{pickFor=id2;$("#pick").click()}return}
-    if(t.dataset.act==="add"){var arr=draft.sets[id2],l=arr[arr.length-1]||{kg:"",reps:""};arr.push({kg:l.kg,reps:l.reps,done:false});saveDraft();render();return}
+    if(t.dataset.act==="add"){var arr=draft.sets[id2],l=arr[arr.length-1]||{kg:"",reps:"",gk:"",gr:""};arr.push({kg:"",reps:"",gk:l.kg!==""&&l.kg!=null?l.kg:(l.gk==null?"":l.gk),gr:l.reps!==""&&l.reps!=null?l.reps:(l.gr==null?"":l.gr),done:false});saveDraft();render();return}
     if(t.dataset.act==="done"){
       var row=t.closest(".setrow"),i=+row.dataset.i,s=draft.sets[id2][i];
-      s.done=!s.done;saveDraft();row.classList.toggle("done",s.done);t.textContent=s.done?"✓":"";if(s.done)buzz();updateProgress();
+      s.done=!s.done;
+      if(s.done){
+        if(s.kg===""&&s.gk!=null&&s.gk!==""){s.kg=s.gk;var ik=row.querySelector('[data-f="kg"]');if(ik)ik.value=s.kg}
+        if(s.reps===""&&s.gr!=null&&s.gr!==""){s.reps=s.gr;var ir=row.querySelector('[data-f="reps"]');if(ir)ir.value=s.reps}
+      }
+      saveDraft();row.classList.toggle("done",s.done);t.textContent=s.done?"✓":"";if(s.done)buzz();updateProgress();
       if(s.done){
         var cc=doneCount(),ex=EX.filter(function(z){return z.id===id2})[0];
         if(cc.n<cc.t&&ex&&restSecs(ex)>0){
