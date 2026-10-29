@@ -436,6 +436,36 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
 .card.min.alldone .excount{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .primary.armed{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
 .wkpick{margin:-2px 0 0}
+/* ---- routine editor: matching capsules, vector icons, rest picker ---- */
+.exmv button{display:flex;align-items:center;justify-content:center;width:34px;height:36px;font-size:0;color:rgba(255,255,255,.6)}
+.exmv .x{color:rgba(255,122,102,.75)}
+.exname.static{display:block;padding:8px 0;font:700 16px var(--body);color:var(--ink)}
+.ex2{justify-content:flex-start;gap:8px}
+.cap{display:flex;align-items:center;gap:6px;height:38px;border-radius:9999px;background:rgba(255,255,255,.06);border:0;padding:0 12px;color:rgba(255,255,255,.7);font:500 13.5px var(--body);flex:none;min-height:0;width:auto}
+.cap b{color:#f5f6f7;font-weight:800}
+.cap.stepper{padding:0 3px;gap:2px}
+.cap.stepper button{width:30px;height:30px;font-size:18px;background:rgba(255,255,255,.08)}
+.cap.stepper span{min-width:50px;font-size:13px}
+.cap.repcap{padding:0 12px 0 6px;gap:2px}
+.cap.repcap input{width:54px;min-height:0;height:34px;padding:0;border:0;background:transparent;text-align:center;font:800 14px var(--body);color:#f5f6f7}
+.cap.repcap span{font:500 13px var(--body);color:rgba(255,255,255,.55)}
+.cap.restcap{margin-left:auto;cursor:pointer;color:rgba(255,255,255,.6)}
+.cap.restcap b{font:800 13.5px var(--body);font-variant-numeric:tabular-nums}
+.cap.restcap:active{transform:scale(.95)}
+.cap.ro span{font:500 13px var(--body)}
+.rsheet{position:fixed;inset:0;z-index:40;display:flex;align-items:flex-end;justify-content:center}
+.rsback{position:absolute;inset:0;border:0;background:rgba(0,0,0,.55);animation:rsfade .2s ease}
+.rspanel{position:relative;width:min(100%,560px);padding:10px 18px calc(22px + env(safe-area-inset-bottom,0px));border-radius:26px 26px 0 0;background:rgba(22,25,30,.97);border-top:1px solid rgba(255,255,255,.14);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);animation:rsup .3s cubic-bezier(.16,1,.3,1)}
+.rshandle{width:40px;height:5px;border-radius:3px;background:rgba(255,255,255,.2);margin:0 auto 14px}
+.rspanel h3{margin:0;font:800 20px var(--body);color:var(--ink)}
+.rspanel p{margin:2px 0 16px;font:500 14px var(--body);color:var(--muted)}
+.rsgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.rsopt{height:52px;border-radius:16px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.05);color:var(--ink);font:700 17px var(--body);font-variant-numeric:tabular-nums}
+.rsopt.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.rsopt:active{transform:scale(.96)}
+@keyframes rsup{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes rsfade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.rspanel,.rsback{animation:none}}
 .restrow{display:flex;align-items:center;gap:10px;min-height:38px;margin:-4px 0;padding:0 6px 0 14px;border-radius:12px;background:rgba(255,255,255,.04);border:0;border-top:1px solid rgba(255,255,255,.12);border-bottom:1px solid rgba(255,255,255,.04);overflow:hidden;animation:restexp .3s cubic-bezier(.16,1,.3,1)}
 .restrow.noanim{animation:none}
 .restrow .rl{font:700 10.5px var(--body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
@@ -501,7 +531,7 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
   var REST_DEFAULT=90; // seconds, used when an exercise has no rest time of its own
   var TARGET_SECS_PER_KM=8100/21.0975; // sub 2:15 half marathon
   var K={data:"gl-data-v2",photos:"gl-photos-v2",draft:"gl-draft-v2",active:"gl-active-v1",runDraft:"gl-rundraft-v2",auth:"gl-auth-v1"};
-  var state={sessions:[],runs:[],routines:[]}, photos={}, draft=null, runDraft=null, tab="today", collapsed={};
+  var state={sessions:[],runs:[],routines:[]}, restPrefs={}, photos={}, draft=null, runDraft=null, tab="today", collapsed={};
   var confirmDel=null, pickFor=null, importText="";
   var cloud={ready:false,uid:null,email:null,db:null,unsubs:[],err:null,configured:false,loading:false};
   var $=function(s){return document.querySelector(s)};
@@ -530,7 +560,7 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
 
   /* ---------- persistence ---------- */
   function saveLocal(){
-    var ok=lsSet(K.data,{sessions:state.sessions,runs:state.runs,routines:state.routines});
+    var ok=lsSet(K.data,{sessions:state.sessions,runs:state.runs,routines:state.routines,rest:restPrefs});
     var ok2=lsSet(K.photos,photos);
     if(!ok||!ok2)toast("Phone storage is full. Remove a photo or sync to the cloud.");
   }
@@ -609,6 +639,11 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
       var map={};snap.docs.forEach(function(d){var o=d.data();map[o.id||d.id]=o});
       if(first)state.routines.forEach(function(x){if(!map[x.id]){map[x.id]=x;cw("routines",x.id,x)}});
       state.routines=Object.keys(map).map(function(k){return map[k]});
+    });
+    listen("settings",function(snap,first){
+      var doc=null;snap.docs.forEach(function(d){if(d.id==="rest")doc=d.data()});
+      if(doc&&doc.map&&typeof doc.map==="object"){restPrefs=doc.map}
+      else if(first&&Object.keys(restPrefs).length){cw("settings","rest",{id:"rest",map:restPrefs,updated:Date.now()})}
     });
     listen("photos",function(snap,first){
       var map={};snap.docs.forEach(function(d){var o=d.data();if(o&&o.data)map[d.id]=o.data});
@@ -740,7 +775,13 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
 
   /* ---------- rest timer ---------- */
   var rest={end:0,total:0,iv:0,hide:0,on:false,over:false,show:false,anchor:null};
+  function defaultRest(e){
+    var t=e.rest||"",m=/(\d+(?:\.\d+)?)\s*min/i.exec(t);if(m)return Math.round(parseFloat(m[1])*60);
+    m=/(\d+)\s*s(?:ec)?/i.exec(t);if(m)return +m[1];
+    return REST_DEFAULT;
+  }
   function restSecs(e){
+    if(typeof restPrefs[e.id]==="number")return restPrefs[e.id];
     if(e.restSec>0)return e.restSec;
     var t=e.rest||"",m=/(\d+(?:\.\d+)?)\s*min/i.exec(t);if(m)return Math.round(parseFloat(m[1])*60);
     m=/(\d+)\s*s(?:ec)?/i.exec(t);if(m)return +m[1];
@@ -811,6 +852,31 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
     if(kind==="add"&&rest.on){rest.end+=30000;rest.total+=30000;restPaint()}
     else stopRest();
   }
+  /* ---------- rest time picker (bottom sheet) ---------- */
+  var REST_OPTS=[30,45,60,90,120,150,180,240,0];
+  function exName(id){var m=allEx().filter(function(e){return e.id===id})[0];return m&&m.name?m.name:"this exercise"}
+  function exById(id){return allEx().filter(function(e){return e.id===id})[0]||{id:id}}
+  function fmtRestOpt(v){return v>0?fmtRest(v*1000):"Off"}
+  function restLabel(id){return fmtRestOpt(restSecs(exById(id)))}
+  function saveRestPrefs(){saveLocal();cw("settings","rest",{id:"rest",map:restPrefs,updated:Date.now()})}
+  function closeRestSheet(){var el=document.getElementById("rsheet");if(el&&el.parentNode)el.parentNode.removeChild(el)}
+  function openRestSheet(id){
+    closeRestSheet();
+    var cur=restSecs(exById(id)),opts=REST_OPTS.slice();
+    if(opts.indexOf(cur)<0){opts.push(cur);opts.sort(function(a,b){return (a||1e9)-(b||1e9)})}
+    var h='<button class="rsback" data-rs="close" aria-label="Close"></button><div class="rspanel" role="dialog" aria-label="Rest timer"><div class="rshandle"></div><h3>Rest timer</h3><p>'+esc(exName(id))+' · after each set</p><div class="rsgrid">';
+    opts.forEach(function(v){h+='<button class="rsopt'+(v===cur?' on':'')+'" data-rs="'+v+'">'+fmtRestOpt(v)+'</button>'});
+    h+='</div></div>';
+    var el=document.createElement("div");el.id="rsheet";el.className="rsheet";el.dataset.ex=id;el.innerHTML=h;
+    document.body.appendChild(el);
+  }
+  document.addEventListener("click",function(ev){
+    var b=ev.target.closest&&ev.target.closest("[data-rs]");if(!b)return;
+    var sh=document.getElementById("rsheet");if(!sh)return;
+    var v=b.dataset.rs;
+    if(v!=="close"){restPrefs[sh.dataset.ex]=+v;saveRestPrefs();if(rest.show&&rest.on)stopRest()}
+    closeRestSheet();render();
+  });
   document.addEventListener("visibilitychange",function(){
     if(document.hidden)return;
     restTick();
@@ -1050,7 +1116,7 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
   });
 
   /* ---------- import / export ---------- */
-  function backupJSON(){return JSON.stringify({app:"gym-log",v:3,sessions:state.sessions,runs:state.runs,routines:state.routines,photos:photos})}
+  function backupJSON(){return JSON.stringify({app:"gym-log",v:3,sessions:state.sessions,runs:state.runs,routines:state.routines,rest:restPrefs,photos:photos})}
   function importData(text){
     var o;
     try{o=JSON.parse(text)}catch(e){toast("That doesn't look like a backup");return}
@@ -1061,6 +1127,7 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
     (o.sessions||[]).forEach(function(x){if(x&&x.id&&x.date&&x.sets&&!haveS[x.id]){state.sessions.push(x);haveS[x.id]=1;addS++;cw("sessions",x.id,x)}});
     (o.routines||[]).forEach(function(x){if(x&&x.id&&x.name&&Array.isArray(x.ex)&&!state.routines.some(function(z){return z.id===x.id})){state.routines.push(x);cw("routines",x.id,x)}});
     (o.runs||[]).forEach(function(x){if(x&&x.id&&x.date&&x.km>0&&!haveR[x.id]){state.runs.push(x);haveR[x.id]=1;addR++;cw("runs",x.id,x)}});
+    if(o.rest&&typeof o.rest==="object"){var addedRest=false;Object.keys(o.rest).forEach(function(k){if(restPrefs[k]===undefined&&typeof o.rest[k]==="number"){restPrefs[k]=o.rest[k];addedRest=true}});if(addedRest)cw("settings","rest",{id:"rest",map:restPrefs,updated:Date.now()})}
     var ph=o.photos&&typeof o.photos==="object"?o.photos:{};
     Object.keys(ph).forEach(function(k){if(typeof ph[k]==="string"&&ph[k].indexOf("data:image/")===0&&!photos[k]){photos[k]=ph[k];addP++;cw("photos",k,{data:ph[k]})}});
     saveLocal();importText="";render();
@@ -1083,7 +1150,7 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
     EX.forEach(function(e){
       var last=lastFor(e.id),ph=photos[e.id];
       h+='<section class="card'+(isMin(e.id)?' min':'')+'" data-ex="'+e.id+'"><div class="card-top" data-act="toggle" role="button" tabindex="0" aria-expanded="'+(isMin(e.id)?'false':'true')+'" aria-label="'+esc(e.name)+', tap to collapse or expand"><div class="card-left"><button class="thumb" data-act="photo" aria-label="'+(ph?'View photo of ':'Add a photo of ')+esc(e.name)+'">'+(ph?'<img alt="'+esc(e.name)+'" src="'+ph+'">':'+ Photo')+'</button><h2>'+esc(e.name)+'</h2></div><div class="card-right"><span class="excount"></span><span class="target">'+e.sets+' × '+e.range+'</span><span class="exchev" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></div></div>';
-      h+='<div class="last">'+(last?'Last time: '+esc(fmtSets(last)):'First time. Start light, leave 2 reps in the tank.')+(e.rest?' · '+e.rest:'')+'</div>';
+      h+='<div class="last">'+(last?'Last time: '+esc(fmtSets(last)):'First time. Start light, leave 2 reps in the tank.')+' · '+(restSecs(e)>0?'Rest '+fmtRest(restSecs(e)*1000):'No rest timer')+'</div>';
       draft.sets[e.id].forEach(function(s,i){
         h+='<div class="setrow'+(s.done?' done':'')+'" data-i="'+i+'"><span class="n">'+(i+1)+'</span>'+
           '<label class="field"><span>kg</span><input type="number" inputmode="decimal" step="0.5" min="0" data-f="kg" value="'+esc(s.kg)+'" aria-label="'+esc(e.name)+' set '+(i+1)+' kilograms"></label>'+
@@ -1272,10 +1339,19 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
     var h="",r;
     if(acctView==="routines"){
       h+='<button class="backrow" id="acctback"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Account</button><h2 class="sh">Workouts</h2>';
-      h+='<div class="sgroup"><div class="srow"><div class="sl"><span>Workout A</span><small>Your current routine · '+BASE_EX.length+' exercises · built in</small></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>';
+      h+='<div class="sgroup"><button class="srow" data-ra="openA"><div class="sl"><span>Workout A</span><small>Your current routine · '+BASE_EX.length+' exercises · rest times</small></div>'+chevR()+'</button>';
       state.routines.forEach(function(x){h+='<button class="srow" data-ra="open" data-rid="'+esc(x.id)+'"><div class="sl"><span>'+esc(x.name)+'</span><small>'+x.ex.length+' exercise'+(x.ex.length===1?'':'s')+'</small></div>'+chevR()+'</button>'});
       h+='</div><div class="rowbtns"><button class="btn" data-ra="new">+ New routine</button><button class="btn" data-ra="copyA">+ Copy of Workout A</button></div>';
       h+='<div class="help">Workout A stays exactly as it is. Switch between workouts with the chips at the top of the Workout tab.</div>';
+      main.innerHTML=h;return;
+    }
+    if(acctView==="builtin"){
+      h+='<button class="backrow" data-ra="back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Workouts</button><h2 class="sh">Workout A</h2>';
+      h+='<div class="sgroup exlist">';
+      BASE_EX.forEach(function(e){
+        h+='<div class="exrow"><div class="ex1"><span class="exname static">'+esc(e.name)+'</span></div><div class="ex2"><div class="cap ro"><span><b>'+e.sets+'</b> sets</span></div><div class="cap ro"><span><b>'+esc(e.range)+'</b> reps</span></div>'+restPill(e.id)+'</div></div>';
+      });
+      h+='</div><div class="help">Workout A stays as it is. You can change how long the rest timer runs after each exercise.</div>';
       main.innerHTML=h;return;
     }
     r=curRoutine();if(!r){acctView="routines";return renderRoutines()}
@@ -1284,16 +1360,26 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
     var lib=knownEx();h+='<datalist id="exlib">'+Object.keys(lib).map(function(k){var nm=k.replace(/\b\w/g,function(c){return c.toUpperCase()});return '<option value="'+esc(nm)+'">'}).join('')+'</datalist>';
     h+='<div class="sgroup exlist">';
     r.ex.forEach(function(e,i){
-      h+='<div class="exrow"><div class="ex1"><input type="text" class="exname" data-rf="name" data-i="'+i+'" list="exlib" placeholder="Exercise name" maxlength="40" value="'+esc(e.name)+'" aria-label="Exercise name"><div class="exmv"><button data-ra="up" data-i="'+i+'" aria-label="Move up"'+(i===0?' disabled':'')+'>▲</button><button data-ra="dn" data-i="'+i+'" aria-label="Move down"'+(i===r.ex.length-1?' disabled':'')+'>▼</button><button class="x" data-ra="rm" data-i="'+i+'" aria-label="Remove exercise">✕</button></div></div>'+
-        '<div class="ex2"><div class="stepper"><button data-ra="sm" data-i="'+i+'" aria-label="Fewer sets">−</button><span><b>'+e.sets+'</b> sets</span><button data-ra="sp" data-i="'+i+'" aria-label="More sets">+</button></div><label class="exrange"><span>Reps</span><input type="text" data-rf="range" data-i="'+i+'" maxlength="8" value="'+esc(e.range)+'" placeholder="10–12" aria-label="Rep range"></label></div></div>';
+      h+='<div class="exrow"><div class="ex1"><input type="text" class="exname" data-rf="name" data-i="'+i+'" list="exlib" placeholder="Exercise name" maxlength="40" value="'+esc(e.name)+'" aria-label="Exercise name"><div class="exmv"><button data-ra="up" data-i="'+i+'" aria-label="Move up"'+(i===0?' disabled':'')+'>'+IC.up+'</button><button data-ra="dn" data-i="'+i+'" aria-label="Move down"'+(i===r.ex.length-1?' disabled':'')+'>'+IC.dn+'</button><button class="x" data-ra="rm" data-i="'+i+'" aria-label="Remove exercise">'+IC.rm+'</button></div></div>'+
+        '<div class="ex2"><div class="cap stepper"><button data-ra="sm" data-i="'+i+'" aria-label="Fewer sets">−</button><span><b>'+e.sets+'</b> sets</span><button data-ra="sp" data-i="'+i+'" aria-label="More sets">+</button></div>'+
+        '<label class="cap repcap"><input type="text" data-rf="range" data-i="'+i+'" maxlength="8" value="'+esc(e.range)+'" placeholder="10–12" aria-label="Rep range"><span>reps</span></label>'+restPill(e.id)+'</div></div>';
     });
     if(!r.ex.length)h+='<div class="help" style="padding:16px">No exercises yet. Add your first one below.</div>';
     h+='</div><button class="btn" data-ra="add">+ Add exercise</button>';
     h+='<div class="rowbtns"><button class="btn" data-ra="dup">Duplicate</button><button class="btn dng" data-ra="del">'+(confirmDel==="r:"+r.id?'Tap again to delete':'Delete routine')+'</button></div>';
     main.innerHTML=h;
   }
+  var IC={
+    up:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>',
+    dn:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
+    rm:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v5M14 11v5"/></svg>',
+    clock:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M9 2h6"/></svg>'
+  };
+  function restPill(id){return '<button class="cap restcap" data-rp="'+esc(id)+'" aria-label="Rest time, '+esc(restLabel(id))+'">'+IC.clock+'<b>'+esc(restLabel(id))+'</b>'+IC.dn+'</button>'}
   function routineAction(t){
     var a=t.dataset.ra,i=+t.dataset.i,r=curRoutine();
+    if(a==="openA"){acctView="builtin";render();window.scrollTo(0,0);return}
+    if(a==="back"&&acctView==="builtin"){acctView="routines";render();return}
     if(a==="open"){routineId=t.dataset.rid;acctView="routine";confirmDel=null;render();document.body.scrollTop=0;window.scrollTo(0,0);return}
     if(a==="new"||a==="copyA"){
       var nr={id:uid(),name:nextRoutineName(),ex:a==="copyA"?BASE_EX.map(cloneEx):[blankEx()],updated:Date.now()};
@@ -1316,7 +1402,7 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
 
   function renderAcct(){
     var h="";
-    if(acctView==="routines"||acctView==="routine")return renderRoutines();
+    if(acctView==="routines"||acctView==="routine"||acctView==="builtin")return renderRoutines();
     if(acctView==="data"){
       h+='<button class="backrow" id="acctback"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Account</button><h2 class="sh">Data &amp; backup</h2>';
       h+='<div class="sgroup"><button class="srow" id="bk-copy"><div class="sl"><span>Copy backup</span><small>Puts everything on your clipboard</small></div>'+chevR()+'</button><button class="srow" id="bk-dl"><div class="sl"><span>Download backup</span><small>Saves a file you can keep</small></div>'+chevR()+'</button><button class="srow" id="bk-file"><div class="sl"><span>Import from file</span><small>Adds anything missing, never overwrites</small></div>'+chevR()+'</button></div>';
@@ -1384,6 +1470,7 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
     var tg=ev.target.closest('[data-act="toggle"]');
     if(tg&&!ev.target.closest("button")){toggleCard(tg);return}
     var t=ev.target.closest("button");if(!t)return;
+    if(t.dataset.rp){openRestSheet(t.dataset.rp);return}
     if(t.dataset.rest){restClick(t.dataset.rest);return}
     if(t.dataset.wk){setWorkout(t.dataset.wk);render();window.scrollTo(0,0);return}
     if(t.dataset.wknew){
@@ -1454,7 +1541,7 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
       s.done=!s.done;saveDraft();row.classList.toggle("done",s.done);t.textContent=s.done?"✓":"";if(s.done)buzz();updateProgress();
       if(s.done){
         var cc=doneCount(),ex=EX.filter(function(z){return z.id===id2})[0];
-        if(cc.n<cc.t&&ex){
+        if(cc.n<cc.t&&ex&&restSecs(ex)>0){
           var nxId=exDone(id2)?firstOpenId():null;
           startRest(ex,nxId?{id:nxId,before:true}:{id:id2,i:i,before:false});
         }else stopRest();
@@ -1488,7 +1575,7 @@ button:disabled+.hapov,body.nohap .hapov{pointer-events:none;display:none}
   });
 
   /* ---------- start ---------- */
-  var cached=lsGet(K.data);if(cached){state.sessions=cached.sessions||[];state.runs=cached.runs||[];state.routines=cached.routines||[]}
+  var cached=lsGet(K.data);if(cached){state.sessions=cached.sessions||[];state.runs=cached.runs||[];state.routines=cached.routines||[];restPrefs=cached.rest&&typeof cached.rest==="object"?cached.rest:{}}
   var cp=lsGet(K.photos);if(cp&&typeof cp==="object")photos=cp;
   var sw=lsGet(K.active);wk=typeof sw==="string"&&sw?sw:"A";
   resolveWorkout();draft=lsGet(draftKey(wk));fitDraft();refreshDate();
