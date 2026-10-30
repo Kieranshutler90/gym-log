@@ -120,6 +120,10 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
 .rowbtns{display:flex;gap:8px;flex-wrap:wrap}
 .lb{position:fixed;inset:0;z-index:30;background:rgba(10,14,18,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px));padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
 .lb img{max-width:100%;max-height:70%;border-radius:10px;object-fit:contain}
+.lb .demorow{display:flex;gap:8px;width:min(100%,520px)}
+.lb .demorow img{flex:1 1 0;min-width:0;width:50%;aspect-ratio:1/1;height:auto;object-fit:cover;background:#fff}
+.lb .demonote{color:rgba(255,255,255,.55);font:500 12px var(--body);text-align:center}
+.thumb.demo{border-style:solid;border-color:rgba(255,255,255,.1);background:#fff}
 .lb .cap{color:#fff;font:700 22px var(--display);letter-spacing:.04em;text-transform:uppercase}
 .lb .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .lb button{min-height:44px;padding:0 18px;border-radius:8px;border:1px solid #fff;background:transparent;color:#fff;font:600 15px var(--body)}
@@ -1007,6 +1011,16 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     else{delete photos[id];cw("photos",id,null)}
     saveLocal();
   }
+  /* demo photos: Free Exercise DB (public domain), matched by exercise name */
+  var DEMO_RULES=[[/seated calf/,"Seated_Calf_Raise"],[/calf.*leg press|leg press.*calf/,"Calf_Press_On_The_Leg_Press_Machine"],[/calf/,"Standing_Calf_Raises"],[/leg press/,"Leg_Press"],[/lying.*leg curl|prone/,"Lying_Leg_Curls"],[/leg curl|hamstring curl/,"Seated_Leg_Curl"],[/leg extension/,"Leg_Extensions"],[/hack squat/,"Hack_Squat"],[/incline.*(chest|press)/,"Leverage_Incline_Chest_Press"],[/decline.*press/,"Leverage_Decline_Chest_Press"],[/(chest|bench) press/,"Leverage_Chest_Press"],[/pec deck|\bfly\b|flye|butterfly/,"Butterfly"],[/lat pull|pulldown|pull-down/,"Wide-Grip_Lat_Pulldown"],[/pull.?up|chin.?up/,"Pullups"],[/face pull/,"Face_Pull"],[/\brows?\b/,"Seated_Cable_Rows"],[/shoulder press|overhead press|military press/,"Leverage_Shoulder_Press"],[/lateral raise|side raise/,"Cable_Seated_Lateral_Raise"],[/hammer/,"Cable_Hammer_Curls_-_Rope_Attachment"],[/machine.*curl|preacher/,"Machine_Bicep_Curl"],[/curl/,"Standing_Biceps_Cable_Curl"],[/\bdips?\b/,"Dips_-_Chest_Version"],[/overhead.*tricep|tricep.*(overhead|extension)/,"Cable_Rope_Overhead_Triceps_Extension"],[/tricep|push.?down|pressdown/,"Triceps_Pushdown"],[/abdominal|ab crunch|crunch machine/,"Ab_Crunch_Machine"],[/cable crunch/,"Cable_Crunch"],[/plank/,"Plank"],[/crunch/,"Ab_Crunch_Machine"],[/leg raise|knee raise/,"Hanging_Leg_Raise"],[/abduct/,"Thigh_Abductor"],[/adduct/,"Thigh_Adductor"],[/romanian|\brdl\b/,"Romanian_Deadlift"],[/deadlift/,"Barbell_Deadlift"],[/squat/,"Barbell_Squat"],[/lunge/,"Dumbbell_Lunges"],[/hip thrust/,"Barbell_Hip_Thrust"],[/back extension|hyperext/,"Hyperextensions_Back_Extensions"],[/shrug/,"Dumbbell_Shrug"],[/push.?up/,"Pushups"]];
+  function demoId(name){var n=String(name||"").toLowerCase();for(var i=0;i<DEMO_RULES.length;i++){if(DEMO_RULES[i][0].test(n))return DEMO_RULES[i][1]}return null}
+  function openDemo(id){
+    var e=EX.filter(function(x){return x.id===id})[0],dm=e&&demoId(e.name);if(!dm)return;
+    var d=document.createElement("div");d.className="lb";d.setAttribute("role","dialog");d.setAttribute("aria-label",e.name+" demo");
+    d.innerHTML='<div class="cap">'+esc(e.name)+'</div><div class="demorow"><img alt="Start position" src="ex/'+dm+'-0.jpg"><img alt="End position" src="ex/'+dm+'-1.jpg"></div><div class="demonote">Start and end position. Photos from the public domain Free Exercise DB.</div><div class="row"><button data-lb="mine">Add my own photo</button><button data-lb="close">Close</button></div>';
+    d.addEventListener("click",function(ev){var b=ev.target.closest("button");if(!b&&ev.target!==d)return;var a=b?b.dataset.lb:"close";d.remove();if(a==="mine"){pickFor=id;$("#pick").click()}});
+    document.body.appendChild(d);
+  }
   function openLightbox(id){
     var e=EX.filter(function(x){return x.id===id})[0],d=document.createElement("div");
     d.className="lb";d.setAttribute("role","dialog");d.setAttribute("aria-label",e.name+" photo");
@@ -1237,8 +1251,8 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     h+='<div class="proginline"><div class="progress"><i id="prog"></i></div><span class="pl" id="proglabel"></span></div>';
     h+='<div class="card warm'+(draft.warm?' done':'')+'" id="warmcard">'+hw('<button class="chk" id="warm" aria-label="Warm-up done" style="width:52px">'+(draft.warm?'✓':'')+'</button>','wchk')+'<div><h2>Warm-up</h2><div class="last">5 min treadmill or bike, easy</div></div></div>';
     EX.forEach(function(e){
-      var last=lastFor(e.id),ph=photos[e.id];
-      h+='<section class="card'+(isMin(e.id)?' min':'')+'" data-ex="'+e.id+'"><div class="card-top" data-act="toggle" role="button" tabindex="0" aria-expanded="'+(isMin(e.id)?'false':'true')+'" aria-label="'+esc(e.name)+', tap to collapse or expand"><div class="card-left"><button class="thumb" data-act="photo" aria-label="'+(ph?'View photo of ':'Add a photo of ')+esc(e.name)+'">'+(ph?'<img alt="'+esc(e.name)+'" src="'+ph+'">':'+ Photo')+'</button><h2>'+esc(e.name)+'</h2></div><div class="card-right"><span class="excount"></span><span class="target">'+e.sets+' × '+e.range+'</span><span class="exchev" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></div></div>';
+      var last=lastFor(e.id),ph=photos[e.id],dm=ph?null:demoId(e.name);
+      h+='<section class="card'+(isMin(e.id)?' min':'')+'" data-ex="'+e.id+'"><div class="card-top" data-act="toggle" role="button" tabindex="0" aria-expanded="'+(isMin(e.id)?'false':'true')+'" aria-label="'+esc(e.name)+', tap to collapse or expand"><div class="card-left"><button class="thumb'+(!ph&&dm?' demo':'')+'" data-act="photo" aria-label="'+(ph?'View photo of ':dm?'See how to do ':'Add a photo of ')+esc(e.name)+'">'+(ph?'<img alt="'+esc(e.name)+'" src="'+ph+'">':dm?'<img alt="" loading="lazy" src="ex/'+dm+'-0.jpg">':'+ Photo')+'</button><h2>'+esc(e.name)+'</h2></div><div class="card-right"><span class="excount"></span><span class="target">'+e.sets+' × '+e.range+'</span><span class="exchev" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></div></div>';
       h+='<div class="last">'+(last?'Last time: '+esc(fmtSets(last)):'First time. Start light, leave 2 reps in the tank.')+' · '+(restSecs(e)>0?'Rest '+fmtRest(restSecs(e)*1000):'No rest timer')+'</div>';
       draft.sets[e.id].forEach(function(s,i){
         h+='<div class="setrow'+(s.done?' done':'')+'" data-i="'+i+'"><span class="n">'+(i+1)+'</span>'+
@@ -1691,7 +1705,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     if(t.id==="bk-file"){$("#importfile").click();return}
     var card=t.closest("[data-ex]");if(!card)return;
     var id2=card.dataset.ex;
-    if(t.dataset.act==="photo"){if(photos[id2])openLightbox(id2);else{pickFor=id2;$("#pick").click()}return}
+    if(t.dataset.act==="photo"){if(photos[id2])openLightbox(id2);else if(demoId((EX.filter(function(x){return x.id===id2})[0]||{}).name))openDemo(id2);else{pickFor=id2;$("#pick").click()}return}
     if(t.dataset.act==="add"){var arr=draft.sets[id2],l=arr[arr.length-1]||{kg:"",reps:"",gk:"",gr:""};arr.push({kg:"",reps:"",gk:l.kg!==""&&l.kg!=null?l.kg:(l.gk==null?"":l.gk),gr:l.reps!==""&&l.reps!=null?l.reps:(l.gr==null?"":l.gr),done:false});saveDraft();render();return}
     if(t.dataset.act==="done"){
       var row=t.closest(".setrow"),i=+row.dataset.i,s=draft.sets[id2][i];
