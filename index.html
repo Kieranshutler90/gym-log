@@ -127,6 +127,18 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
 #gate{position:fixed;inset:0;z-index:40;background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:auto;
   padding:calc(16px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-left,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-right,0px))}
 #gate[hidden]{display:none}
+.gmode{background:none;border:0;color:var(--accent);font:700 15px var(--body);padding:10px;margin:0 auto;cursor:pointer}
+#guide{position:fixed;inset:0;z-index:45;display:flex;align-items:flex-end;justify-content:center}
+#guide .gback{position:absolute;inset:0;background:rgba(0,0,0,.6);animation:rsfade .2s ease}
+#guide .gpanel{position:relative;width:min(100%,560px);max-height:92vh;display:flex;flex-direction:column;border-radius:26px 26px 0 0;background:rgba(22,25,30,.98);border-top:1px solid rgba(255,255,255,.14);animation:rsup .3s cubic-bezier(.16,1,.3,1)}
+#guide .gscroll{flex:1 1 auto;min-height:0;overflow:auto;padding:22px 20px 8px;-webkit-overflow-scrolling:touch}
+#guide h2{margin:0 0 4px;font:800 26px var(--body);color:var(--ink)}
+#guide .gl{margin:0 0 16px;font:500 14.5px var(--body);color:var(--muted)}
+#guide .gs{display:flex;gap:12px;margin:0 0 16px}
+#guide .gn{flex:none;width:28px;height:28px;border-radius:50%;background:rgba(212,255,0,.14);color:var(--accent);font:800 14px var(--body);display:flex;align-items:center;justify-content:center}
+#guide .gs b{display:block;font:700 16px var(--body);color:var(--ink);margin-bottom:2px}
+#guide .gs span{font:500 14px/1.45 var(--body);color:var(--muted)}
+#guide .gfoot{padding:12px 20px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px}
 .gatecard{width:100%;max-width:380px;display:flex;flex-direction:column;gap:14px}
 .gatecard h1{font-size:44px}
 .locked .wrap{display:none}
@@ -525,11 +537,12 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
 <div id="gate" hidden>
   <form id="gateform" class="gatecard" autocomplete="on">
     <h1>Gym Log</h1>
-    <p class="help">Sign in to open your log.</p>
+    <p class="help" id="gsub">Sign in to open your log.</p>
     <label class="field"><span>Email</span><input type="email" id="gem" name="email" autocomplete="username" inputmode="email" autocapitalize="off" required></label>
     <label class="field"><span>Password</span><input type="password" id="gpw" name="password" autocomplete="current-password" required></label>
     <button class="primary" id="gbtn" type="submit">Sign in</button>
     <div class="help" id="gerr" role="alert"></div>
+    <button class="gmode" id="gmode" type="button">New here? Create an account</button>
   </form>
 </div>
 <input type="file" id="pick" accept="image/*" hidden>
@@ -634,12 +647,37 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     if(on){var b=$("#gbtn");if(b)b.disabled=false}else{var pw=$("#gpw");if(pw)pw.value=""}
     if(!on)render();
   }
+  var gateSignup=false;
+  var GUIDE=[
+    ["Log a workout","Open the Workout tab and tick each set as you finish it. The faint grey numbers are what you did last time, so you can beat them. Your next exercise opens by itself."],
+    ["Rest timer","A rest bar appears after each set. Tap the time on an exercise to change its rest, or turn it off."],
+    ["Make your own workout","Go to Account, then Workouts, then add a new one. Pick your exercises, sets and reps. Switch between workouts with the chips at the top of the Workout tab. Workout A is just a starter, so ignore it if you like."],
+    ["Log cardio","The Cardio tab is for runs, rowing, cycling and stairs. Enter the distance and time and it works out your pace."],
+    ["Track your progress","History shows everything you have logged. Records has your best lifts and times. Tap one to open its graph."],
+    ["Add it to your Home Screen","In Safari tap Share, then Add to Home Screen. It opens like a normal app."]
+  ];
+  function closeGuide(){var g=document.getElementById("guide");if(g&&g.parentNode)g.parentNode.removeChild(g)}
+  function openGuide(){
+    closeGuide();
+    var h='<div class="gback" data-g="x"></div><div class="gpanel" role="dialog" aria-modal="true" aria-label="How to use Gym Log"><div class="gscroll"><div class="rshandle"></div><h2>Welcome to Gym Log</h2><p class="gl">A quick guide to get you going.</p>';
+    GUIDE.forEach(function(x,i){h+='<div class="gs"><div class="gn">'+(i+1)+'</div><div><b>'+esc(x[0])+'</b><span>'+esc(x[1])+'</span></div></div>'});
+    h+='</div><div class="gfoot"><button class="primary" data-g="setup">Set up my workout</button><button class="gmode" data-g="x">Got it</button></div></div>';
+    var el=document.createElement("div");el.id="guide";el.innerHTML=h;document.body.appendChild(el);
+  }
+  document.addEventListener("click",function(ev){
+    var t=ev.target.closest&&ev.target.closest("[data-g]");if(!t)return;
+    closeGuide();
+    if(t.dataset.g==="setup"){tab="acct";acctView="routines";render();window.scrollTo(0,0)}
+  });
   function authMsg(e){
     var c=e&&e.code;
     if(c==="auth/invalid-credential"||c==="auth/wrong-password"||c==="auth/user-not-found"||c==="auth/invalid-email")return "Wrong email or password.";
     if(c==="auth/too-many-requests")return "Too many tries. Wait a few minutes and try again.";
     if(c==="auth/network-request-failed")return "No connection. Try again when you're online.";
-    return "Couldn't sign in. Try again.";
+    if(c==="auth/email-already-in-use")return "That email already has an account. Tap below to sign in.";
+    if(c==="auth/weak-password")return "Pick a password with at least 6 characters.";
+    if(c==="auth/operation-not-allowed")return "Sign-up isn't switched on yet.";
+    return gateSignup?"Couldn't create the account. Try again.":"Couldn't sign in. Try again.";
   }
   function stopListening(){cloud.unsubs.forEach(function(u){try{u()}catch(e){}});cloud.unsubs=[]}
   function onAuth(user){
@@ -647,6 +685,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     cloud.err=null;
     if(!user){cloud.uid=null;cloud.email=null;try{localStorage.removeItem(K.auth)}catch(e){}lock(true);refreshStatus();return}
     cloud.uid=user.uid;cloud.email=user.email;lsSet(K.auth,1);lock(false);
+    try{if(localStorage.getItem("gl-guide-new")){localStorage.removeItem("gl-guide-new");openGuide()}}catch(e){}
     listen("sessions",function(snap,first){
       var map={};snap.docs.forEach(function(d){var o=d.data();map[o.id||d.id]=o});
       if(first)state.sessions.forEach(function(x){if(!map[x.id]){map[x.id]=x;cw("sessions",x.id,x)}});
@@ -1484,6 +1523,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     h+='<div class="sgroup"><div class="srow"><div class="sl"><span>Tick sound</span><small>A tiny click when you tick a set</small></div><button class="sw" id="snd" role="switch" aria-checked="'+soundOn()+'" aria-label="Tick sound"><i></i></button></div>'+
        '<div class="srow"><div class="sl"><span>Haptic tap</span><small>A small tap when you tick a set. Needs iOS 17.4 or newer</small></div><button class="sw" id="hap" role="switch" aria-checked="'+hapticOn()+'" aria-label="Haptic tap"><i></i></button></div>'+
        '<button class="srow" id="openroutines"><div class="sl"><span>Workouts</span><small>'+(state.routines.length+1)+' routine'+(state.routines.length?'s':'')+' · create and edit</small></div>'+chevR()+'</button>'+
+       '<button class="srow" id="openguide"><div class="sl"><span>How to use</span><small>A quick guide to the app</small></div>'+chevR()+'</button>'+
        '<button class="srow" id="opendata"><div class="sl"><span>Data &amp; backup</span><small>Export, import and restore</small></div>'+chevR()+'</button></div>';
     h+='<div class="help" style="text-align:center">'+state.sessions.length+' workout'+(state.sessions.length===1?'':'s')+' · '+state.runs.length+' cardio session'+(state.runs.length===1?'':'s')+'</div>';
     main.innerHTML=h;
@@ -1521,6 +1561,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     document.addEventListener("touchend",function(e){
       if(!on)return;on=false;var t=e.changedTouches[0],dx=t.clientX-sx,dy=Math.abs(t.clientY-sy);
       if(dx<70||dy>dx*0.6)return;
+      if(document.getElementById("guide")){closeGuide();return}
       if(document.getElementById("rsheet")){closeRestSheet();return}
       var b=main.querySelector(".backrow");if(b)b.click();
     },{passive:true});
@@ -1593,6 +1634,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     }
     if(t.dataset.ra){routineAction(t);return}
     if(t.id==="openroutines"){acctView="routines";render();window.scrollTo(0,0);return}
+    if(t.id==="openguide"){openGuide();return}
     if(t.id==="opendata"){acctView="data";render();window.scrollTo(0,0);return}
     if(t.id==="acctback"){acctView=(acctView==="data"||acctView==="routines")?"main":"routines";render();return}
     if(t.id==="hap"){try{localStorage.setItem("gl-haptic",hapticOn()?"off":"on")}catch(e){}render();return}
@@ -1676,7 +1718,20 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     if(!em||!pw){er.textContent="Enter your email and password.";return}
     if(!cloud.ready){er.textContent=cloud.loading?"Still connecting. Try again in a moment.":"Can't reach sign-in. Check your connection and try again.";if(!cloud.loading)initCloud();return}
     b.disabled=true;er.textContent="";
+    if(gateSignup){
+      if(pw.length<6){er.textContent="Pick a password with at least 6 characters.";return}
+      b.disabled=true;try{localStorage.setItem("gl-guide-new","1")}catch(e){}
+      firebase.auth().createUserWithEmailAndPassword(em,pw).then(function(){},function(e){b.disabled=false;try{localStorage.removeItem("gl-guide-new")}catch(x){}er.textContent=authMsg(e)});
+      return;
+    }
     firebase.auth().signInWithEmailAndPassword(em,pw).then(function(){},function(e){b.disabled=false;er.textContent=authMsg(e)});
+  });
+  $("#gmode").addEventListener("click",function(){
+    gateSignup=!gateSignup;$("#gerr").textContent="";
+    $("#gsub").textContent=gateSignup?"Create an account to start your own log.":"Sign in to open your log.";
+    $("#gbtn").textContent=gateSignup?"Create account":"Sign in";
+    $("#gmode").textContent=gateSignup?"Already have an account? Sign in":"New here? Create an account";
+    $("#gpw").autocomplete=gateSignup?"new-password":"current-password";
   });
   var hasCfg=!!(window.FIREBASE_CONFIG&&window.FIREBASE_CONFIG.apiKey);
   if(hasCfg&&!lsGet(K.auth)){document.body.classList.add("locked");$("#gate").hidden=false}
