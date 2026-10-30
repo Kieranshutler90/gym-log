@@ -752,7 +752,9 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
   function retire(r,ex){if(!ex||!ex.name||!String(ex.name).trim())return;r.old=r.old||[];if(!r.old.some(function(o){return o.id===ex.id}))r.old.push(cloneEx(ex))}
   function saveA(){var a=state.wa;a.updated=Date.now();applyA();dropStaleDraft("A");saveLocal();cw("settings","workoutA",{id:"workoutA",ex:a.ex.map(cloneEx),old:(a.old||[]).map(cloneEx),updated:a.updated})}
   function wkName(w){if(!w||w==="A")return "Workout A";var r=routineById(w);return r&&r.name?r.name:"Workout A"}
-  function allEx(){var seen={},out=[];BASE_EX.concat(state.wa?routineEx({ex:state.wa.old}):[],[].concat.apply([],state.routines.map(routineEx))).forEach(function(e){if(!seen[e.id]){seen[e.id]=1;out.push(e)}});return out}
+  function allEx(){var seen={},out=[];BASE_EX.concat(state.wa?routineEx({ex:state.wa.old}):[],[].concat.apply([],state.routines.map(routineEx))).forEach(function(e){if(!seen[e.id]){seen[e.id]=1;out.push(e)}});
+    state.sessions.forEach(function(x){if(x.names)Object.keys(x.names).forEach(function(id){if(!seen[id]&&x.names[id]){seen[id]=1;out.push({id:id,name:x.names[id],sets:3,range:"10–12"})}})});return out}
+  function strayIds(x){var known={};allEx().forEach(function(e){known[e.id]=1});return Object.keys(x.sets||{}).filter(function(k){return !known[k]&&x.sets[k]&&x.sets[k].length})}
   function histEx(){return allEx().filter(function(e){return BASE_EX.some(function(b){return b.id===e.id})||state.sessions.some(function(x){return x.sets&&x.sets[e.id]&&x.sets[e.id].length})})}
   function exDone(id){var a=draft.sets[id];return !!a&&a.length>0&&a.every(function(z){return z.done})}
   function firstOpenId(){for(var i=0;i<EX.length;i++){if(!exDone(EX[i].id))return EX[i].id}return null}
@@ -960,7 +962,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     var rec={id:uid(),rid:wk,date:draft.date,warm:draft.warm,note:draft.note.trim(),sets:{}};
     EX.forEach(function(e){
       var a=draft.sets[e.id].filter(function(s){return s.done}).map(function(s){return {kg:num(s.kg),reps:num(s.reps)}});
-      if(a.length)rec.sets[e.id]=a;
+      if(a.length){rec.sets[e.id]=a;rec.names=rec.names||{};rec.names[e.id]=e.name}
     });
     state.sessions=state.sessions.concat([rec]);
     saveLocal();cw("sessions",rec.id,rec);
@@ -1393,7 +1395,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     if(!feed.length)h+='<div class="empty">Nothing here yet.</div>';
     feed.forEach(function(it){
       if(it.k==="r"){h+=runCard(it.x);return}
-      var x=it.x,total=0,names=[];allEx().forEach(function(e){var a=x.sets&&x.sets[e.id];if(a&&a.length){total+=a.length;names.push(e.name)}});
+      var x=it.x,total=0,names=[],stray=strayIds(x);allEx().forEach(function(e){var a=x.sets&&x.sets[e.id];if(a&&a.length){total+=a.length;names.push(e.name)}});stray.forEach(function(k){total+=x.sets[k].length;names.push('Unnamed exercise')});
       var pr=st.prs[x.id]||[],open=!!openCards[x.id];
       h+='<div class="card hcard'+(open?' open':'')+'" data-card="'+esc(x.id)+'"><div class="htop"><div><b>'+esc(fmtDate(x.date))+'</b><span class="last">'+esc(wkName(x.rid))+' · '+total+' sets</span></div><button class="dots" data-menu="'+esc(x.id)+'" data-mk="gym" aria-label="Workout options"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button></div>'+
         '<div class="hnames">'+esc(names.slice(0,3).join(" · "))+(names.length>3?' +'+(names.length-3):'')+'</div>'+
@@ -1401,6 +1403,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
       if(open){
         h+='<div class="cdet'+(freshCard===x.id?' fresh':'')+'"><ul class="list">';
         allEx().forEach(function(e){var a=x.sets&&x.sets[e.id];if(a&&a.length){var ip=pr.some(function(p){return p.ex===e.name});h+='<li><span>'+esc(e.name)+'</span><span>'+(ip?'<em class="prt">PR</em>':'')+esc(fmtSets(a))+'</span></li>'}});
+        stray.forEach(function(k){h+='<li data-nm="'+esc(x.id)+'" data-ex="'+esc(k)+'" style="cursor:pointer"><span>Unnamed exercise · tap to name</span><span>'+esc(fmtSets(x.sets[k]))+'</span></li>'});
         h+='</ul>'+(x.note?'<div class="note">'+esc(x.note)+'</div>':'')+'</div>';
       }
       h+='</div>';
@@ -1494,7 +1497,8 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     if(a==="back"){tidyRoutine();acctView="routines";routineId=null;confirmDel=null;render();return}
     if(a==="add"){r.ex.push(blankEx());saveRoutine(r);render();var ins=document.querySelectorAll(".exname");if(ins.length)ins[ins.length-1].focus();return}
     if(a==="resetA"){
-      if(confirmDel==="a"){state.wa=null;applyA();dropStaleDraft("A");saveLocal();cw("settings","workoutA",null);confirmDel=null;render();toast("Workout A reset")}
+      if(confirmDel==="a"){var keep=(state.wa.old||[]).concat(state.wa.ex.filter(function(e){return e.name&&e.name.trim()&&!DEFAULT_EX.some(function(d){return d.id===e.id})}));
+        state.wa={id:"A",name:"Workout A",ex:DEFAULT_EX.map(cloneEx),old:keep,updated:0};saveA();confirmDel=null;render();toast("Workout A reset")}
       else{confirmDel="a";render()}
       return;
     }
@@ -1592,6 +1596,9 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     if(ev.target.classList&&ev.target.classList.contains("hapov")){var hb=ev.target.previousElementSibling;ev.target.checked=false;try{ev.target.blur()}catch(e){}if(hb&&!hb.disabled)hb.click();return}
     var rcd=ev.target.closest("[data-rec]");
     if(rcd&&!ev.target.closest("button")){var rid=rcd.dataset.rec;openRec[rid]=!openRec[rid];freshRec=openRec[rid]?rid:null;render();return}
+    var nm=ev.target.closest("[data-nm]");
+    if(nm){var sx=state.sessions.filter(function(z){return z.id===nm.dataset.nm})[0],nn=sx&&window.prompt("What was this exercise called?","");
+      if(sx&&nn&&nn.trim()){sx.names=sx.names||{};sx.names[nm.dataset.ex]=nn.trim().slice(0,40);saveLocal();cw("sessions",sx.id,sx);render()}return}
     var cd=ev.target.closest("[data-card]");
     if(cd&&!ev.target.closest("button")){var cid=cd.dataset.card;openCards[cid]=!openCards[cid];freshCard=openCards[cid]?cid:null;render();return}
     var tg=ev.target.closest('[data-act="toggle"]');
