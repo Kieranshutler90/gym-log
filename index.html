@@ -754,6 +754,24 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
   function wkName(w){if(!w||w==="A")return "Workout A";var r=routineById(w);return r&&r.name?r.name:"Workout A"}
   function allEx(){var seen={},out=[];BASE_EX.concat(state.wa?routineEx({ex:state.wa.old}):[],[].concat.apply([],state.routines.map(routineEx))).forEach(function(e){if(!seen[e.id]){seen[e.id]=1;out.push(e)}});
     state.sessions.forEach(function(x){if(x.names)Object.keys(x.names).forEach(function(id){if(!seen[id]&&x.names[id]){seen[id]=1;out.push({id:id,name:x.names[id],sets:3,range:"10–12"})}})});return out}
+  function sessionRows(x){
+    var rows=[],stray=strayIds(x),nm=x.names||{};
+    allEx().forEach(function(e){var a=x.sets&&x.sets[e.id];if(a&&a.length)rows.push({id:e.id,name:e.name,a:a})});
+    stray.forEach(function(k){rows.push({id:k,name:nm[k]||"",a:x.sets[k],stray:true})});
+    if(Array.isArray(x.order)){var o=x.order;rows=rows.map(function(r,i){return {r:r,k:o.indexOf(r.id)<0?1e6+i:o.indexOf(r.id)}}).sort(function(p,q){return p.k-q.k}).map(function(z){return z.r})}
+    return rows;
+  }
+  // one-off: put the 30 Oct 2026 session back in the order it was done
+  function fixOrder(){
+    var want=["leg press","seated leg curl","leg extension","chest press machine","incline chest press","lat pulldown","shoulder press machine","seated lateral raise","cable bicep curl","tricep push down","cable crunch / plank"];
+    state.sessions.forEach(function(x){
+      if(x.date!=="2026-10-30"||x.order||!x.sets)return;
+      var rows=sessionRows(x),ok=rows.length>1&&rows.every(function(r){return want.indexOf(String(r.name).toLowerCase())>=0});
+      if(!ok)return;
+      x.order=rows.slice().sort(function(a,b){return want.indexOf(a.name.toLowerCase())-want.indexOf(b.name.toLowerCase())}).map(function(r){return r.id});
+      saveLocal();cw("sessions",x.id,x);
+    });
+  }
   function strayIds(x){var known={};allEx().forEach(function(e){known[e.id]=1});return Object.keys(x.sets||{}).filter(function(k){return !known[k]&&x.sets[k]&&x.sets[k].length})}
   function histEx(){return allEx().filter(function(e){return BASE_EX.some(function(b){return b.id===e.id})||state.sessions.some(function(x){return x.sets&&x.sets[e.id]&&x.sets[e.id].length})})}
   function exDone(id){var a=draft.sets[id];return !!a&&a.length>0&&a.every(function(z){return z.done})}
@@ -962,7 +980,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     var rec={id:uid(),rid:wk,date:draft.date,warm:draft.warm,note:draft.note.trim(),sets:{}};
     EX.forEach(function(e){
       var a=draft.sets[e.id].filter(function(s){return s.done}).map(function(s){return {kg:num(s.kg),reps:num(s.reps)}});
-      if(a.length){rec.sets[e.id]=a;rec.names=rec.names||{};rec.names[e.id]=e.name}
+      if(a.length){rec.sets[e.id]=a;rec.names=rec.names||{};rec.names[e.id]=e.name;rec.order=rec.order||[];rec.order.push(e.id)}
     });
     state.sessions=state.sessions.concat([rec]);
     saveLocal();cw("sessions",rec.id,rec);
@@ -1358,7 +1376,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     return h+'</div>';
   }
   function renderHist(){
-    var st=histStats(),h='<div class="seg" style="grid-template-columns:1fr 1fr"><button class="chip" data-hv="log" aria-pressed="'+(histView==="log")+'">Log</button><button class="chip" data-hv="rec" aria-pressed="'+(histView==="rec")+'">Records</button></div>';
+    fixOrder();var st=histStats(),h='<div class="seg" style="grid-template-columns:1fr 1fr"><button class="chip" data-hv="log" aria-pressed="'+(histView==="log")+'">Log</button><button class="chip" data-hv="rec" aria-pressed="'+(histView==="rec")+'">Records</button></div>';
     var s=sortedSessions();
     if(!s.length&&!state.runs.length){main.innerHTML=h+'<div class="empty">Nothing logged yet.<br>Finish a workout or log a run and it shows up here.</div>';return}
     var chipsHtml='<div class="chips scrollrow hf">'+HF.map(function(f){return '<button class="chip" data-hf="'+f[0]+'" aria-pressed="'+(histFilter===f[0])+'">'+f[1]+'</button>'}).join('')+'</div>';
@@ -1395,15 +1413,17 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     if(!feed.length)h+='<div class="empty">Nothing here yet.</div>';
     feed.forEach(function(it){
       if(it.k==="r"){h+=runCard(it.x);return}
-      var x=it.x,total=0,names=[],stray=strayIds(x);allEx().forEach(function(e){var a=x.sets&&x.sets[e.id];if(a&&a.length){total+=a.length;names.push(e.name)}});stray.forEach(function(k){total+=x.sets[k].length;names.push('Unnamed exercise')});
+      var x=it.x,total=0,names=[],rows=sessionRows(x);rows.forEach(function(r){total+=r.a.length;names.push(r.name||'Unnamed exercise')});
       var pr=st.prs[x.id]||[],open=!!openCards[x.id];
       h+='<div class="card hcard'+(open?' open':'')+'" data-card="'+esc(x.id)+'"><div class="htop"><div><b>'+esc(fmtDate(x.date))+'</b><span class="last">'+esc(wkName(x.rid))+' · '+total+' sets</span></div><button class="dots" data-menu="'+esc(x.id)+'" data-mk="gym" aria-label="Workout options"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button></div>'+
         '<div class="hnames">'+esc(names.slice(0,3).join(" · "))+(names.length>3?' +'+(names.length-3):'')+'</div>'+
         '<div class="hfoot">'+(pr.length?'<span class="prb">PR · '+esc(pr[0].ex+' '+pr[0].kg+' kg')+(pr.length>1?' +'+(pr.length-1):'')+'</span>':'<span></span>')+'<span class="chev" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></div>';
       if(open){
         h+='<div class="cdet'+(freshCard===x.id?' fresh':'')+'"><ul class="list">';
-        allEx().forEach(function(e){var a=x.sets&&x.sets[e.id];if(a&&a.length){var ip=pr.some(function(p){return p.ex===e.name});h+='<li><span>'+esc(e.name)+'</span><span>'+(ip?'<em class="prt">PR</em>':'')+esc(fmtSets(a))+'</span></li>'}});
-        stray.forEach(function(k){h+='<li data-nm="'+esc(x.id)+'" data-ex="'+esc(k)+'" style="cursor:pointer"><span>Unnamed exercise · tap to name</span><span>'+esc(fmtSets(x.sets[k]))+'</span></li>'});
+        rows.forEach(function(r){
+          if(r.stray&&!r.name){h+='<li data-nm="'+esc(x.id)+'" data-ex="'+esc(r.id)+'" style="cursor:pointer"><span>Unnamed exercise · tap to name</span><span>'+esc(fmtSets(r.a))+'</span></li>';return}
+          var ip=pr.some(function(p){return p.ex===r.name});h+='<li><span>'+esc(r.name)+'</span><span>'+(ip?'<em class="prt">PR</em>':'')+esc(fmtSets(r.a))+'</span></li>';
+        });
         h+='</ul>'+(x.note?'<div class="note">'+esc(x.note)+'</div>':'')+'</div>';
       }
       h+='</div>';
