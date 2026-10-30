@@ -676,8 +676,8 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     if(c==="auth/network-request-failed")return "No connection. Try again when you're online.";
     if(c==="auth/email-already-in-use")return "That email already has an account. Tap below to sign in.";
     if(c==="auth/weak-password")return "Pick a password with at least 6 characters.";
-    if(c==="auth/operation-not-allowed")return "Sign-up isn't switched on yet.";
-    return gateSignup?"Couldn't create the account. Try again.":"Couldn't sign in. Try again.";
+    if(c==="auth/operation-not-allowed"||c==="auth/admin-restricted-operation")return "Sign-up isn't switched on yet.";
+    return (gateSignup?"Couldn't create the account":"Couldn't sign in")+(c?" ("+String(c).replace("auth/","")+")":"")+". Try again.";
   }
   function stopListening(){cloud.unsubs.forEach(function(u){try{u()}catch(e){}});cloud.unsubs=[]}
   function onAuth(user){
