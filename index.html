@@ -1514,6 +1514,17 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
   })();
   document.addEventListener("focusin",function(ev){if(ev.target&&ev.target.classList&&ev.target.classList.contains("hapov"))return;var n=ev.target&&ev.target.tagName;if(n==="INPUT"||n==="TEXTAREA"||n==="SELECT")document.body.classList.add("kb")});
   document.addEventListener("focusout",function(){setTimeout(function(){var a=document.activeElement,n=a&&a.tagName;if(!(n==="INPUT"||n==="TEXTAREA"||n==="SELECT"))document.body.classList.remove("kb")},60)});
+  /* swipe from the left edge = back (settings sub-screens) */
+  (function(){
+    var sx=0,sy=0,on=false;
+    document.addEventListener("touchstart",function(e){var t=e.touches[0];on=e.touches.length===1&&t.clientX<28;sx=t.clientX;sy=t.clientY},{passive:true});
+    document.addEventListener("touchend",function(e){
+      if(!on)return;on=false;var t=e.changedTouches[0],dx=t.clientX-sx,dy=Math.abs(t.clientY-sy);
+      if(dx<70||dy>dx*0.6)return;
+      if(document.getElementById("rsheet")){closeRestSheet();return}
+      var b=main.querySelector(".backrow");if(b)b.click();
+    },{passive:true});
+  })();
   $("#tabs").addEventListener("click",function(ev){
     var b=ev.target.closest(".tab");if(!b)return;
     tab=b.dataset.tab;confirmDel=null;acctView="main";render();window.scrollTo(0,0);document.body.classList.remove("navhide");
