@@ -554,7 +554,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
 <script>
 (function(){
   "use strict";
-  var BASE_EX=[
+  var DEFAULT_EX=[
     {id:"leg-press",name:"Leg press",sets:3,range:"10–12",rest:"Rest about 2 min"},
     {id:"leg-curl",name:"Seated leg curl",sets:3,range:"12"},
     {id:"chest-press",name:"Chest press machine",sets:3,range:"10–12"},
@@ -562,6 +562,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     {id:"shoulder-press",name:"Shoulder press machine",sets:2,range:"10–12"},
     {id:"core",name:"Cable crunch / plank",sets:3,range:"12",unit:"reps or sec"}
   ];
+  var BASE_EX=DEFAULT_EX.slice(); // Workout A: the starter list unless the person has edited it (state.wa)
   var EX=BASE_EX, wk="A"; // EX = exercises of the workout being logged; wk = "A" (built in) or a routine id
   var REST_DEFAULT=90; // seconds, used when an exercise has no rest time of its own
   var TARGET_SECS_PER_KM=8100/21.0975; // sub 2:15 half marathon
@@ -595,7 +596,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
 
   /* ---------- persistence ---------- */
   function saveLocal(){
-    var ok=lsSet(K.data,{sessions:state.sessions,runs:state.runs,routines:state.routines,rest:restPrefs});
+    var ok=lsSet(K.data,{sessions:state.sessions,runs:state.runs,routines:state.routines,rest:restPrefs,a:state.wa||null});
     var ok2=lsSet(K.photos,photos);
     if(!ok||!ok2)toast("Phone storage is full. Remove a photo or sync to the cloud.");
   }
@@ -651,7 +652,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
   var GUIDE=[
     ["Log a workout","Open the Workout tab and tick each set as you finish it. The faint grey numbers are what you did last time, so you can beat them. Your next exercise opens by itself."],
     ["Rest timer","A rest bar appears after each set. Tap the time on an exercise to change its rest, or turn it off."],
-    ["Make your own workout","Go to Account, then Workouts, then add a new one. Pick your exercises, sets and reps. Switch between workouts with the chips at the top of the Workout tab. Workout A is just a starter, so ignore it if you like."],
+    ["Make your own workout","Go to Account, then Workouts, then add a new one. Pick your exercises, sets and reps. Switch between workouts with the chips at the top of the Workout tab. Workout A is a starter you can edit or ignore."],
     ["Log cardio","The Cardio tab is for runs, rowing, cycling and stairs. Enter the distance and time and it works out your pace."],
     ["Track your progress","History shows everything you have logged. Records has your best lifts and times. Tap one to open its graph."],
     ["Add it to your Home Screen","In Safari tap Share, then Add to Home Screen. It opens like a normal app."]
@@ -702,7 +703,9 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
       state.routines=Object.keys(map).map(function(k){return map[k]});
     });
     listen("settings",function(snap,first){
-      var doc=null;snap.docs.forEach(function(d){if(d.id==="rest")doc=d.data()});
+      var doc=null,wad=null;snap.docs.forEach(function(d){if(d.id==="rest")doc=d.data();if(d.id==="workoutA")wad=d.data()});
+      if(wad&&Array.isArray(wad.ex)){state.wa={id:"A",name:"Workout A",ex:wad.ex,old:Array.isArray(wad.old)?wad.old:[],updated:wad.updated||0};applyA()}
+      else if(first&&state.wa){cw("settings","workoutA",{id:"workoutA",ex:state.wa.ex.map(cloneEx),old:(state.wa.old||[]).map(cloneEx),updated:state.wa.updated||Date.now()})}
       if(doc&&doc.map&&typeof doc.map==="object"){restPrefs=doc.map}
       else if(first&&Object.keys(restPrefs).length){cw("settings","rest",{id:"rest",map:restPrefs,updated:Date.now()})}
     });
@@ -744,8 +747,12 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
   function routineById(id){return state.routines.filter(function(r){return r.id===id})[0]}
   function cloneEx(e){var o={id:e.id,name:e.name,sets:e.sets,range:e.range};if(e.rest)o.rest=e.rest;if(e.unit)o.unit=e.unit;return o}
   function routineEx(r){return (r&&r.ex||[]).filter(function(e){return e&&e.name&&String(e.name).trim()}).map(function(e){var o=cloneEx(e);o.sets=Math.max(1,Math.min(10,+e.sets||3));o.range=e.range||"10–12";return o})}
+  function applyA(){var l=state.wa?routineEx(state.wa):[];BASE_EX=l.length?l:DEFAULT_EX.slice()}
+  function ensureWa(){if(!state.wa)state.wa={id:"A",name:"Workout A",ex:DEFAULT_EX.map(cloneEx),old:[],updated:0};if(!Array.isArray(state.wa.old))state.wa.old=[];return state.wa}
+  function retire(r,ex){if(!ex||!ex.name||!String(ex.name).trim())return;r.old=r.old||[];if(!r.old.some(function(o){return o.id===ex.id}))r.old.push(cloneEx(ex))}
+  function saveA(){var a=state.wa;a.updated=Date.now();applyA();dropStaleDraft("A");saveLocal();cw("settings","workoutA",{id:"workoutA",ex:a.ex.map(cloneEx),old:(a.old||[]).map(cloneEx),updated:a.updated})}
   function wkName(w){if(!w||w==="A")return "Workout A";var r=routineById(w);return r&&r.name?r.name:"Workout A"}
-  function allEx(){var seen={},out=[];BASE_EX.concat([].concat.apply([],state.routines.map(routineEx))).forEach(function(e){if(!seen[e.id]){seen[e.id]=1;out.push(e)}});return out}
+  function allEx(){var seen={},out=[];BASE_EX.concat(state.wa?routineEx({ex:state.wa.old}):[],[].concat.apply([],state.routines.map(routineEx))).forEach(function(e){if(!seen[e.id]){seen[e.id]=1;out.push(e)}});return out}
   function histEx(){return allEx().filter(function(e){return BASE_EX.some(function(b){return b.id===e.id})||state.sessions.some(function(x){return x.sets&&x.sets[e.id]&&x.sets[e.id].length})})}
   function exDone(id){var a=draft.sets[id];return !!a&&a.length>0&&a.every(function(z){return z.done})}
   function firstOpenId(){for(var i=0;i<EX.length;i++){if(!exDone(EX[i].id))return EX[i].id}return null}
@@ -1177,7 +1184,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
   });
 
   /* ---------- import / export ---------- */
-  function backupJSON(){return JSON.stringify({app:"gym-log",v:3,sessions:state.sessions,runs:state.runs,routines:state.routines,rest:restPrefs,photos:photos})}
+  function backupJSON(){return JSON.stringify({app:"gym-log",v:3,sessions:state.sessions,runs:state.runs,routines:state.routines,a:state.wa||null,rest:restPrefs,photos:photos})}
   function importData(text){
     var o;
     try{o=JSON.parse(text)}catch(e){toast("That doesn't look like a backup");return}
@@ -1189,6 +1196,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     (o.routines||[]).forEach(function(x){if(x&&x.id&&x.name&&Array.isArray(x.ex)&&!state.routines.some(function(z){return z.id===x.id})){state.routines.push(x);cw("routines",x.id,x)}});
     (o.runs||[]).forEach(function(x){if(x&&x.id&&x.date&&x.km>0&&!haveR[x.id]){state.runs.push(x);haveR[x.id]=1;addR++;cw("runs",x.id,x)}});
     if(o.rest&&typeof o.rest==="object"){var addedRest=false;Object.keys(o.rest).forEach(function(k){if(restPrefs[k]===undefined&&typeof o.rest[k]==="number"){restPrefs[k]=o.rest[k];addedRest=true}});if(addedRest)cw("settings","rest",{id:"rest",map:restPrefs,updated:Date.now()})}
+    if(o.a&&Array.isArray(o.a.ex)&&!state.wa){state.wa={id:"A",name:"Workout A",ex:o.a.ex,old:Array.isArray(o.a.old)?o.a.old:[],updated:Date.now()};applyA();saveA()}
     var ph=o.photos&&typeof o.photos==="object"?o.photos:{};
     Object.keys(ph).forEach(function(k){if(typeof ph[k]==="string"&&ph[k].indexOf("data:image/")===0&&!photos[k]){photos[k]=ph[k];addP++;cw("photos",k,{data:ph[k]})}});
     saveLocal();importText="";render();
@@ -1430,37 +1438,29 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     state.routines.forEach(function(r){r.ex.forEach(function(e){if(e!==skip&&e.name&&!m[e.name.toLowerCase()])m[e.name.toLowerCase()]=e.id})});
     return m;
   }
-  function saveRoutine(r){r.updated=Date.now();dropStaleDraft(r.id);saveLocal();cw("routines",r.id,r)}
+  function saveRoutine(r){if(r===state.wa){saveA();return}r.updated=Date.now();dropStaleDraft(r.id);saveLocal();cw("routines",r.id,r)}
   function nextRoutineName(){
     var used={"Workout A":1};state.routines.forEach(function(r){used[r.name]=1});
     for(var i=1;i<26;i++){var n="Workout "+String.fromCharCode(65+i);if(!used[n])return n}
     return "New workout";
   }
-  function curRoutine(){return state.routines.filter(function(r){return r.id===routineId})[0]}
+  function curRoutine(){if(acctView==="builtin")return ensureWa();return state.routines.filter(function(r){return r.id===routineId})[0]}
   function blankEx(){return {id:"x-"+uid(),name:"",sets:3,range:"10–12"}}
   function tidyRoutine(){var r=curRoutine();if(!r)return;var n=r.ex.length;r.ex=r.ex.filter(function(e){return e.name&&e.name.trim()});if(!r.name.trim())r.name=nextRoutineName();saveRoutine(r)}
   function renderRoutines(){
     var h="",r;
     if(acctView==="routines"){
       h+='<button class="backrow" id="acctback"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Account</button><h2 class="sh">Workouts</h2>';
-      h+='<div class="sgroup"><button class="srow" data-ra="openA"><div class="sl"><span>Workout A</span><small>Your current routine · '+BASE_EX.length+' exercises · rest times</small></div>'+chevR()+'</button>';
+      h+='<div class="sgroup"><button class="srow" data-ra="openA"><div class="sl"><span>Workout A</span><small>Starter routine · '+BASE_EX.length+' exercises · rest times</small></div>'+chevR()+'</button>';
       state.routines.forEach(function(x){h+='<button class="srow" data-ra="open" data-rid="'+esc(x.id)+'"><div class="sl"><span>'+esc(x.name)+'</span><small>'+x.ex.length+' exercise'+(x.ex.length===1?'':'s')+'</small></div>'+chevR()+'</button>'});
       h+='</div><div class="rowbtns"><button class="btn" data-ra="new">+ New routine</button><button class="btn" data-ra="copyA">+ Copy of Workout A</button></div>';
-      h+='<div class="help">Workout A stays exactly as it is. Switch between workouts with the chips at the top of the Workout tab.</div>';
+      h+='<div class="help">Workout A is your starter. Tap it to change its exercises, sets, reps and rest. Switch between workouts with the chips at the top of the Workout tab.</div>';
       main.innerHTML=h;return;
     }
-    if(acctView==="builtin"){
-      h+='<button class="backrow" data-ra="back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Workouts</button><h2 class="sh">Workout A</h2>';
-      h+='<div class="sgroup exlist">';
-      BASE_EX.forEach(function(e){
-        h+='<div class="exrow"><div class="ex1"><span class="exname static">'+esc(e.name)+'</span></div><div class="ex2"><div class="cap ro"><span><b>'+e.sets+'</b> sets</span></div><div class="cap ro"><span><b>'+esc(e.range)+'</b> reps</span></div>'+restPill(e.id)+'</div></div>';
-      });
-      h+='</div><div class="help">Workout A stays as it is. You can change how long the rest timer runs after each exercise.</div>';
-      main.innerHTML=h;return;
-    }
+    var isA=acctView==="builtin";
     r=curRoutine();if(!r){acctView="routines";return renderRoutines()}
     h+='<button class="backrow" data-ra="back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Workouts</button>';
-    h+='<label class="field"><span>Routine name</span><input type="text" id="rname" maxlength="30" value="'+esc(r.name)+'"></label>';
+    h+=isA?'<h2 class="sh">Workout A</h2>':'<label class="field"><span>Routine name</span><input type="text" id="rname" maxlength="30" value="'+esc(r.name)+'"></label>';
     var lib=knownEx();h+='<datalist id="exlib">'+Object.keys(lib).map(function(k){var nm=k.replace(/\b\w/g,function(c){return c.toUpperCase()});return '<option value="'+esc(nm)+'">'}).join('')+'</datalist>';
     h+='<div class="sgroup exlist">';
     r.ex.forEach(function(e,i){
@@ -1470,7 +1470,8 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     });
     if(!r.ex.length)h+='<div class="help" style="padding:16px">No exercises yet. Add your first one below.</div>';
     h+='</div><button class="btn" data-ra="add">+ Add exercise</button>';
-    h+='<div class="rowbtns"><button class="btn" data-ra="dup">Duplicate</button><button class="btn dng" data-ra="del">'+(confirmDel==="r:"+r.id?'Tap again to delete':'Delete routine')+'</button></div>';
+    if(isA)h+='<div class="rowbtns"><button class="btn dng" data-ra="resetA">'+(confirmDel==="a"?'Tap again to reset':'Reset to original')+'</button></div>';
+    else h+='<div class="rowbtns"><button class="btn" data-ra="dup">Duplicate</button><button class="btn dng" data-ra="del">'+(confirmDel==="r:"+r.id?'Tap again to delete':'Delete routine')+'</button></div>';
     main.innerHTML=h;
   }
   var IC={
@@ -1483,7 +1484,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
   function routineAction(t){
     var a=t.dataset.ra,i=+t.dataset.i,r=curRoutine();
     if(a==="openA"){acctView="builtin";render();window.scrollTo(0,0);return}
-    if(a==="back"&&acctView==="builtin"){acctView="routines";render();return}
+    if(a==="back"&&acctView==="builtin"){if(state.wa)tidyRoutine();acctView="routines";confirmDel=null;render();return}
     if(a==="open"){routineId=t.dataset.rid;acctView="routine";confirmDel=null;render();document.body.scrollTop=0;window.scrollTo(0,0);return}
     if(a==="new"||a==="copyA"){
       var nr={id:uid(),name:nextRoutineName(),ex:a==="copyA"?BASE_EX.map(cloneEx):[blankEx()],updated:Date.now()};
@@ -1492,7 +1493,12 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     if(!r)return;
     if(a==="back"){tidyRoutine();acctView="routines";routineId=null;confirmDel=null;render();return}
     if(a==="add"){r.ex.push(blankEx());saveRoutine(r);render();var ins=document.querySelectorAll(".exname");if(ins.length)ins[ins.length-1].focus();return}
-    if(a==="rm"){r.ex.splice(i,1);saveRoutine(r);render();return}
+    if(a==="resetA"){
+      if(confirmDel==="a"){state.wa=null;applyA();dropStaleDraft("A");saveLocal();cw("settings","workoutA",null);confirmDel=null;render();toast("Workout A reset")}
+      else{confirmDel="a";render()}
+      return;
+    }
+    if(a==="rm"){if(r===state.wa)retire(r,r.ex[i]);r.ex.splice(i,1);saveRoutine(r);render();return}
     if(a==="up"&&i>0){var x=r.ex[i];r.ex[i]=r.ex[i-1];r.ex[i-1]=x;saveRoutine(r);render();return}
     if(a==="dn"&&i<r.ex.length-1){var y=r.ex[i];r.ex[i]=r.ex[i+1];r.ex[i+1]=y;saveRoutine(r);render();return}
     if(a==="sm"){r.ex[i].sets=Math.max(1,r.ex[i].sets-1);saveRoutine(r);render();return}
@@ -1693,7 +1699,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     if(el.id==="date"){if(el.value){draft.date=el.value;saveDraft();var d2=$("#dtxt2");if(d2)d2.textContent=dateLabel(el.value)}return}
     if(el.id==="imp"){importText=el.value;return}
     if(el.id==="rname"){var rr=curRoutine();if(rr){rr.name=el.value;saveRoutine(rr)}return}
-    if(el.dataset.rf){var r2=curRoutine();if(r2){var ex=r2.ex[+el.dataset.i];if(ex){ex[el.dataset.rf]=el.value;saveRoutine(r2)}}return}
+    if(el.dataset.rf){var r2=curRoutine();if(r2){var ex=r2.ex[+el.dataset.i];if(ex){if(r2===state.wa&&el.dataset.rf==="name"&&!/^x-/.test(ex.id))retire(r2,ex);ex[el.dataset.rf]=el.value;saveRoutine(r2)}}return}
     if(el.id==="rtime"){var g=el.value.replace(/\D/g,"").replace(/^0+/,"").slice(0,6);runDraft.tdig=g;el.value=fmtDig(g);saveRunDraft();updatePaceBox();return}
     var rmap={rdate:"date",rkm:"km",rnote:"note"};
     if(rmap[el.id]){if(el.id==="rdate"&&!el.value)return;runDraft[rmap[el.id]]=el.value;saveRunDraft();if(el.id==="rdate"){var dt=$("#dtxt");if(dt)dt.textContent=dateLabel(el.value)}updatePaceBox();return}
@@ -1704,7 +1710,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
   });
 
   /* ---------- start ---------- */
-  var cached=lsGet(K.data);if(cached){state.sessions=cached.sessions||[];state.runs=cached.runs||[];state.routines=cached.routines||[];restPrefs=cached.rest&&typeof cached.rest==="object"?cached.rest:{}}
+  var cached=lsGet(K.data);if(cached){state.sessions=cached.sessions||[];state.runs=cached.runs||[];state.routines=cached.routines||[];if(cached.a&&Array.isArray(cached.a.ex)){state.wa=cached.a;applyA()}restPrefs=cached.rest&&typeof cached.rest==="object"?cached.rest:{}}
   var cp=lsGet(K.photos);if(cp&&typeof cp==="object")photos=cp;
   var sw=lsGet(K.active);wk=typeof sw==="string"&&sw?sw:"A";
   resolveWorkout();draft=lsGet(draftKey(wk));fitDraft();refreshDate();
