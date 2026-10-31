@@ -685,12 +685,25 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     return (gateSignup?"Couldn't create the account":"Couldn't sign in")+(c?" ("+String(c).replace("auth/","")+")":"")+". Try again.";
   }
   function stopListening(){cloud.unsubs.forEach(function(u){try{u()}catch(e){}});cloud.unsubs=[]}
+  // The log on this phone belongs to one account. A new sign-up, or a different account, starts clean.
+  function wipeLocal(){
+    try{Object.keys(localStorage).filter(function(k){return k.indexOf("gl-data")===0||k.indexOf("gl-photos")===0||k.indexOf("gl-draft")===0||k.indexOf("gl-rundraft")===0||k===K.active}).forEach(function(k){localStorage.removeItem(k)})}catch(e){}
+    state.sessions=[];state.runs=[];state.routines=[];state.wa=null;applyA();restPrefs={};photos={};wk="A";
+    resolveWorkout();draft=null;fitDraft();runDraft=newRunDraft();collapsed={};openCards={};
+  }
+  function claimLocal(uid,isNew){
+    var owner=null;try{owner=localStorage.getItem("gl-owner-v1")}catch(e){}
+    if(isNew||(owner&&owner!==uid))wipeLocal();
+    try{localStorage.setItem("gl-owner-v1",uid)}catch(e){}
+  }
   function onAuth(user){
     stopListening();
     cloud.err=null;
     if(!user){cloud.uid=null;cloud.email=null;try{localStorage.removeItem(K.auth)}catch(e){}lock(true);refreshStatus();return}
+    var isNew=false;try{isNew=!!localStorage.getItem("gl-guide-new")}catch(e){}
+    claimLocal(user.uid,isNew);
     cloud.uid=user.uid;cloud.email=user.email;lsSet(K.auth,1);lock(false);
-    try{if(localStorage.getItem("gl-guide-new")){localStorage.removeItem("gl-guide-new");openGuide()}}catch(e){}
+    if(isNew){try{localStorage.removeItem("gl-guide-new")}catch(e){}openGuide()}
     listen("sessions",function(snap,first){
       var map={};snap.docs.forEach(function(d){var o=d.data();map[o.id||d.id]=o});
       if(first)state.sessions.forEach(function(x){if(!map[x.id]){map[x.id]=x;cw("sessions",x.id,x)}});
