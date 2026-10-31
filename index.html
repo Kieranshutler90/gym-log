@@ -684,6 +684,19 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     if(c==="auth/operation-not-allowed"||c==="auth/admin-restricted-operation")return "Sign-up isn't switched on yet.";
     return (gateSignup?"Couldn't create the account":"Couldn't sign in")+(c?" ("+String(c).replace("auth/","")+")":"")+". Try again.";
   }
+  var delBusy=false,delConfirm=false;
+  async function deleteAccount(pw){
+    var u=firebase.auth().currentUser;if(!u||!u.email)throw {code:"auth/no-user"};
+    await u.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(u.email,pw));
+    stopListening();
+    var cols=["sessions","runs","routines","photos","settings"];
+    for(var i=0;i<cols.length;i++){
+      var snap=await userDoc().collection(cols[i]).get(),docs=snap.docs;
+      for(var j=0;j<docs.length;j+=400){var b=cloud.db.batch();docs.slice(j,j+400).forEach(function(d){b.delete(d.ref)});await b.commit()}
+    }
+    await u.delete();
+    wipeLocal();try{localStorage.removeItem("gl-owner-v1");localStorage.removeItem(K.auth)}catch(e){}
+  }
   function stopListening(){cloud.unsubs.forEach(function(u){try{u()}catch(e){}});cloud.unsubs=[]}
   // The log on this phone belongs to one account. A new sign-up, or a different account, starts clean.
   function wipeLocal(){
@@ -1569,6 +1582,11 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
   function renderAcct(){
     var h="";
     if(acctView==="routines"||acctView==="routine"||acctView==="builtin")return renderRoutines();
+    if(acctView==="delete"){
+      h+='<button class="backrow" id="acctback"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Account</button><h2 class="sh">Delete account</h2>';
+      h+='<div class="sgroup pad"><div class="help" style="margin:0 0 12px">This permanently deletes your account and every workout, run, photo and setting saved to it. It can\'t be undone. Download a backup first if you want to keep a copy.</div><label class="field"><span>Enter your password to confirm</span><input type="password" id="delpw" autocomplete="current-password"></label><div class="help" id="delerr" role="alert"></div><button class="btn dng" id="delgo"'+(delBusy?' disabled':'')+'>'+(delBusy?'Deleting…':delConfirm?'Tap again to delete forever':'Delete my account')+'</button></div>';
+      main.innerHTML=h;return;
+    }
     if(acctView==="data"){
       h+='<button class="backrow" id="acctback"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Account</button><h2 class="sh">Data &amp; backup</h2>';
       h+='<div class="sgroup"><button class="srow" id="bk-copy"><div class="sl"><span>Copy backup</span><small>Puts everything on your clipboard</small></div>'+chevR()+'</button><button class="srow" id="bk-dl"><div class="sl"><span>Download backup</span><small>Saves a file you can keep</small></div>'+chevR()+'</button><button class="srow" id="bk-file"><div class="sl"><span>Import from file</span><small>Adds anything missing, never overwrites</small></div>'+chevR()+'</button></div>';
@@ -1588,6 +1606,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
        '<button class="srow" id="openguide"><div class="sl"><span>How to use</span><small>A quick guide to the app</small></div>'+chevR()+'</button>'+
        '<button class="srow" id="opendata"><div class="sl"><span>Data &amp; backup</span><small>Export, import and restore</small></div>'+chevR()+'</button></div>';
     h+='<div class="help" style="text-align:center">'+state.sessions.length+' workout'+(state.sessions.length===1?'':'s')+' · '+state.runs.length+' cardio session'+(state.runs.length===1?'':'s')+'</div>';
+    if(cloud.uid)h+='<div class="rowbtns"><button class="btn dng" id="opendel">Delete account</button></div>';
     main.innerHTML=h;
   }
 
@@ -1700,9 +1719,20 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     if(t.dataset.ra){routineAction(t);return}
     if(t.id==="openroutines"){acctView="routines";render();window.scrollTo(0,0);return}
     if(t.id==="buildwk"){tab="acct";acctView="builtin";render();window.scrollTo(0,0);return}
+    if(t.id==="opendel"){acctView="delete";delConfirm=false;render();window.scrollTo(0,0);return}
+    if(t.id==="delgo"){
+      var dpw=$("#delpw").value,der=$("#delerr");
+      if(!dpw){der.textContent="Enter your password first.";return}
+      if(!delConfirm){delConfirm=true;t.textContent="Tap again to delete forever";return}
+      delBusy=true;t.disabled=true;t.textContent="Deleting…";der.textContent="";
+      deleteAccount(dpw).then(function(){delBusy=false;delConfirm=false;acctView="main";tab="today";render();toast("Account deleted")},function(e){
+        delBusy=false;delConfirm=false;t.disabled=false;t.textContent="Delete my account";
+        var c=e&&e.code;der.textContent=(c==="auth/wrong-password"||c==="auth/invalid-credential")?"Wrong password.":c==="auth/network-request-failed"?"No connection. Try again when you're online.":c==="auth/too-many-requests"?"Too many tries. Wait a few minutes and try again.":"Couldn't delete the account"+(c?" ("+String(c).replace("auth/","")+")":"")+". Try again."});
+      return;
+    }
     if(t.id==="openguide"){openGuide();return}
     if(t.id==="opendata"){acctView="data";render();window.scrollTo(0,0);return}
-    if(t.id==="acctback"){acctView=(acctView==="data"||acctView==="routines")?"main":"routines";render();return}
+    if(t.id==="acctback"){acctView=(acctView==="data"||acctView==="routines"||acctView==="delete")?"main":"routines";delConfirm=false;render();return}
     if(t.id==="hap"){try{localStorage.setItem("gl-haptic",hapticOn()?"off":"on")}catch(e){}render();return}
     if(t.id==="snd"){try{localStorage.setItem("gl-sound",soundOn()?"off":"on")}catch(e){}render();if(soundOn())pop();return}
     if(t.id==="signout"){firebase.auth().signOut();return}
