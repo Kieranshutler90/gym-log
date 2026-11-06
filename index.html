@@ -514,6 +514,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
 .setrow input.nudge::placeholder{color:var(--accent);opacity:.6}
 .mrow{margin:-4px 0 2px}
 .mpill{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px 0 10px;border-radius:9999px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#b6bcc6;font:700 12.5px var(--body);min-height:0;width:auto}
+.mpill.plp{border-color:rgba(212,255,0,.5);background:rgba(212,255,0,.1);color:var(--accent);font-weight:800}
 .mpill.empty{background:none;border-style:dashed;color:rgba(255,255,255,.4);font-weight:600}
 .mpill:active{transform:scale(.96)}
 .card.min .mrow{display:none}
@@ -550,6 +551,10 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
 .wurow.own.on{background:rgba(212,255,0,.07);border-color:rgba(212,255,0,.25)}
 .wubox{width:24px;height:24px;border-radius:7px;border:2px solid rgba(255,255,255,.28);display:flex;align-items:center;justify-content:center;flex:none;color:var(--accent-ink)}
 .wurow.on .wubox{background:var(--accent);border-color:var(--accent)}
+.psrow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0 0;padding:2px 6px 2px 46px;font:600 13px var(--body);color:#a3a9b3}
+.psrow small{display:block;font:500 11.5px var(--body);color:var(--muted);margin-top:1px}
+.psrow .msstep button{width:38px;height:38px;font-size:20px}
+.psrow .psv{min-width:62px;text-align:center;font:800 16px var(--body);color:var(--ink)}
 .wut b{display:block;font:700 14px var(--body)}
 .wut small{display:block;font:500 12px var(--body);color:var(--muted);margin-top:1px}
 .dlpair{display:flex;gap:10px}
@@ -670,7 +675,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     }else if(!want&&wl){var o=wl;wl=null;try{o.release()}catch(e){}paintWake()}
   }
   document.addEventListener("visibilitychange",function(){syncWake()});
-  function savePf(){pf.updated=Date.now();saveLocal();cw("settings","prefs",{id:"prefs",goal:pf.goal,bw:pf.bw,mach:pf.mach,bar:barKg(),updated:pf.updated})}
+  function savePf(){pf.updated=Date.now();saveLocal();cw("settings","prefs",{id:"prefs",goal:pf.goal,bw:pf.bw,mach:pf.mach,updated:pf.updated})}
   function cleanPf(o){
     var r={goal:3,bw:[],mach:{}};if(!o||typeof o!=="object")return r;
     if(o.goal>=1&&o.goal<=7)r.goal=Math.round(o.goal);
@@ -852,7 +857,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
   /* ---------- which workout is being logged ---------- */
   function draftKey(w){return w==="A"?K.draft:"gl-draft-v2-"+w}
   function routineById(id){return state.routines.filter(function(r){return r.id===id})[0]}
-  function cloneEx(e){var o={id:e.id,name:e.name,sets:e.sets,range:e.range};if(e.rest)o.rest=e.rest;if(e.unit)o.unit=e.unit;if(typeof e.wu==="boolean")o.wu=e.wu;return o}
+  function cloneEx(e){var o={id:e.id,name:e.name,sets:e.sets,range:e.range};if(e.rest)o.rest=e.rest;if(e.unit)o.unit=e.unit;if(typeof e.wu==="boolean")o.wu=e.wu;if(typeof e.pl==="boolean")o.pl=e.pl;if(typeof e.ps==="number")o.ps=e.ps;return o}
   function routineEx(r){return (r&&r.ex||[]).filter(function(e){return e&&e.name&&String(e.name).trim()}).map(function(e){var o=cloneEx(e);o.sets=Math.max(1,Math.min(10,+e.sets||3));o.range=e.range||"10–12";return o})}
   function applyA(){var l=state.wa?routineEx(state.wa):[];BASE_EX=l.length?l:(state.wa&&state.wa.blank?[]:DEFAULT_EX.slice())}
   function ensureWa(){if(!state.wa)state.wa={id:"A",name:"Workout A",ex:DEFAULT_EX.map(cloneEx),old:[],updated:0};if(!Array.isArray(state.wa.old))state.wa.old=[];return state.wa}
@@ -913,7 +918,15 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     draft.wu=draft.wu||{};draft.wu[e.id]=out;draft.wut=draft.wut||{};draft.wut[e.id]=t;return true;
   }
   var PLATES=[[25,24,120,"#e5584b"],[20,22,120,"#4f86e8"],[15,20,108,"#e6c14a"],[10,16,90,"#38b46b"],[5,14,70,"#e6e9ee"],[2.5,10,46,"#b8bec8"],[1.25,8,36,"#9aa1ab"]];
-  function barKg(){return pf.bar>0?pf.bar:20}
+  function plateOn(e){return e.pl===true||(e.pl===undefined&&isBarbell(e.name))}
+  function startOf(e){return typeof e.ps==="number"&&e.ps>=0?e.ps:20}
+  function srcRoutine(){return wk==="A"?state.wa:routineById(wk)}
+  function setStart(id,v){
+    var r=srcRoutine(),ex=r&&r.ex.filter(function(z){return z.id===id})[0];if(!ex)return;
+    ex.ps=v;r.updated=Date.now();
+    if(r===state.wa){applyA();resolveWorkout();saveLocal();cw("settings","workoutA",{id:"workoutA",ex:r.ex.map(cloneEx),old:(r.old||[]).map(cloneEx),blank:!!r.blank,name:r.name||"Workout A",updated:r.updated})}
+    else{saveLocal();cw("routines",r.id,r)}
+  }
   function platesFor(w,bar){
     var per=(w-bar)/2,out=[],rem=per;if(per<=0)return {list:[],got:bar,per:0};
     PLATES.forEach(function(p){while(rem>=p[0]-1e-9){out.push(p);rem-=p[0]}});
@@ -1133,24 +1146,25 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
   }
   var plw=null;
   function plateHtml(){
-    var bar=barKg(),r=platesFor(plw,bar);
-    var h='<button class="rsback" data-pla="close" aria-label="Close"></button><div class="rspanel" role="dialog" aria-label="Plate maths"><div class="rshandle"></div><h3>Plate maths · '+fmtKg(plw)+' kg</h3>';
-    if(plw<=bar)h+='<p>That is lighter than the '+fmtKg(bar)+' kg bar.</p>';
+    var ex=exById(plw.ex),start=startOf(ex),r=platesFor(plw.w,start),bb=isBarbell(ex.name),noun=bb?"bar":"sled";
+    var h='<button class="rsback" data-pla="close" aria-label="Close"></button><div class="rspanel" role="dialog" aria-label="Plate maths"><div class="rshandle"></div><h3>'+(bb?'Plate maths':esc(exName(plw.ex)))+' · '+fmtKg(plw.w)+' kg</h3>';
+    if(plw.w<=start)h+='<p>That is no more than the '+fmtKg(start)+' kg starting weight.</p>';
     else{
-      h+='<p>'+fmtKg(bar)+' kg bar, then this on <b style="color:var(--ink)">each side</b> ('+fmtKg(r.per)+' kg)</p>'+plateSvg(r.list)+'<div class="msrow" style="justify-content:center;margin:6px 0 0"><b style="font:800 15px var(--body)">'+esc(fmtPlates(r.list))+'</b></div>';
+      h+='<p>'+(start>0?fmtKg(start)+' kg '+noun+', then this on ':'Nothing on it to start, so this on ')+'<b style="color:var(--ink)">each side</b> ('+fmtKg(r.per)+' kg)</p>'+plateSvg(r.list)+'<div class="msrow" style="justify-content:center;margin:6px 0 0"><b style="font:800 15px var(--body)">'+esc(fmtPlates(r.list))+'</b></div>';
       if(r.off)h+='<p style="margin:8px 0 0">Closest you can load is '+fmtKg(r.got)+' kg.</p>';
     }
-    h+='<div class="msrow" style="margin:12px 0 0;padding-left:16px"><span style="flex:1;font:700 15px var(--body)">Bar weight</span><div class="msstep"><button data-pla="bm" aria-label="Lighter bar">−</button><span style="min-width:64px">'+fmtKg(bar)+' kg</span><button data-pla="bp" aria-label="Heavier bar">+</button></div></div><p style="margin:10px 0 0;text-align:center;font-size:12px">Plates: 25, 20, 15, 10, 5, 2.5, 1.25 kg</p></div>';
+    h+='<div class="msrow" style="margin:12px 0 0;padding-left:16px"><span style="flex:1;font:700 15px var(--body)">Starting weight<small style="display:block;font:500 11.5px var(--body);color:var(--muted);margin-top:1px">Saved for '+esc(exName(plw.ex))+' only</small></span><div class="msstep"><button data-pla="bm" aria-label="Lower starting weight">−</button><span style="min-width:64px">'+fmtKg(start)+' kg</span><button data-pla="bp" aria-label="Raise starting weight">+</button></div></div><p style="margin:10px 0 0;text-align:center;font-size:12px">Plates: 25, 20, 15, 10, 5, 2.5, 1.25 kg</p></div>';
     return h;
   }
-  function openPlateSheet(w){closeRestSheet();plw=w;var el=document.createElement("div");el.id="rsheet";el.className="rsheet";el.innerHTML=plateHtml();document.body.appendChild(el)}
+  function openPlateSheet(w,id){closeRestSheet();plw={w:w,ex:id};var el=document.createElement("div");el.id="rsheet";el.className="rsheet";el.innerHTML=plateHtml();document.body.appendChild(el)}
   document.addEventListener("click",function(ev){
     var b=ev.target.closest&&ev.target.closest("[data-pla]");
     if(!b||plw===null||!document.getElementById("rsheet"))return;
     var a=b.dataset.pla;
     if(a==="close"){plw=null;closeRestSheet();return}
-    if(a==="bp")pf.bar=Math.min(40,barKg()+5);else if(a==="bm")pf.bar=Math.max(5,barKg()-5);
-    savePf();var psh=document.getElementById("rsheet");psh.classList.add("still");psh.innerHTML=plateHtml();
+    var cur=startOf(exById(plw.ex));
+    if(a==="bp")setStart(plw.ex,Math.min(100,cur+5));else if(a==="bm")setStart(plw.ex,Math.max(0,cur-5));
+    var psh=document.getElementById("rsheet");psh.classList.add("still");psh.innerHTML=plateHtml();
   });
   function openGoalSheet(){
     closeRestSheet();
@@ -1495,8 +1509,8 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
       var last=lastFor(e.id),ph=photos[e.id],dm=ph?null:demoId(e.name),nd=nudgeFor(e),mset=pf.mach[e.id]||[];
       h+='<section class="card'+(isMin(e.id)?' min':'')+'" data-ex="'+e.id+'"><div class="card-top" data-act="toggle" role="button" tabindex="0" aria-expanded="'+(isMin(e.id)?'false':'true')+'" aria-label="'+esc(e.name)+', tap to collapse or expand"><div class="card-left"><button class="thumb'+(!ph&&dm?' demo':'')+'" data-act="photo" aria-label="'+(ph?'View photo of ':dm?'See how to do ':'Add a photo of ')+esc(e.name)+'">'+(ph?'<img alt="'+esc(e.name)+'" src="'+ph+'">':dm?'<img alt="" loading="lazy" src="ex/'+dm+'-0.jpg">':'+ Photo')+'</button><h2>'+esc(e.name)+'</h2></div><div class="card-right"><span class="excount"></span><span class="target">'+e.sets+' × '+e.range+'</span><span class="exchev" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></div></div>';
       h+='<div class="last">'+(last?'Last time: '+esc(fmtSets(last))+(nd?' <span class="nudge">↑ '+fmtKg(nd)+' kg</span>':''):'First time. Start light, leave 2 reps in the tank.')+' · '+(restSecs(e)>0?'Rest '+fmtRest(restSecs(e)*1000):'No rest timer')+'</div>';
-      h+='<div class="mrow">'+(warmEligible(e)?'<button class="wpill'+(draft.wu&&draft.wu[e.id]?' on':'')+'" data-wu="1" aria-pressed="'+!!(draft.wu&&draft.wu[e.id])+'">'+(draft.wu&&draft.wu[e.id]?'✓ Warm-ups added':'+ Warm-ups')+'</button>':'')+(isBarbell(e.name)?'<button class="mpill" data-pl="1" aria-label="Plate maths for '+esc(e.name)+'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="3" height="14" rx="1"/><rect x="17" y="5" width="3" height="14" rx="1"/><rect x="7" y="8" width="2.5" height="8" rx="1"/><rect x="14.5" y="8" width="2.5" height="8" rx="1"/><path d="M9.5 12h5"/></svg>Plates</button>':'')+'<button class="mpill'+(mset.length?'':' empty')+'" data-mso="'+esc(e.id)+'" aria-label="'+(mset.length?'Machine settings: '+esc(mset.map(function(z){return z.n+' '+z.v}).join(', '))+'. Tap to edit':'Add machine settings for '+esc(e.name))+'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>'+(mset.length?esc(mset.map(function(z){return z.n+' '+z.v}).join(' · ')):'Machine settings')+'</button></div>';
-      var wus=draft.wu&&draft.wu[e.id],bb=isBarbell(e.name);
+      h+='<div class="mrow">'+(warmEligible(e)?'<button class="wpill'+(draft.wu&&draft.wu[e.id]?' on':'')+'" data-wu="1" aria-pressed="'+!!(draft.wu&&draft.wu[e.id])+'">'+(draft.wu&&draft.wu[e.id]?'✓ Warm-ups added':'+ Warm-ups')+'</button>':'')+(plateOn(e)?'<button class="mpill plp" data-pl="1" aria-label="Plate maths for '+esc(e.name)+'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="3" height="14" rx="1"/><rect x="17" y="5" width="3" height="14" rx="1"/><rect x="7" y="8" width="2.5" height="8" rx="1"/><rect x="14.5" y="8" width="2.5" height="8" rx="1"/><path d="M9.5 12h5"/></svg>Plates</button>':'')+'<button class="mpill'+(mset.length?'':' empty')+'" data-mso="'+esc(e.id)+'" aria-label="'+(mset.length?'Machine settings: '+esc(mset.map(function(z){return z.n+' '+z.v}).join(', '))+'. Tap to edit':'Add machine settings for '+esc(e.name))+'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>'+(mset.length?esc(mset.map(function(z){return z.n+' '+z.v}).join(' · ')):'Machine settings')+'</button></div>';
+      var wus=draft.wu&&draft.wu[e.id];
       if(wus){
         h+='<div class="wnote">50 · 70 · 90% of '+fmtKg(draft.wut&&draft.wut[e.id]||0)+' kg. Not counted in your sets or records.</div>';
         wus.forEach(function(w,i){
@@ -1785,7 +1799,8 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
       h+='<div class="exrow"><div class="ex1"><input type="text" class="exname" data-rf="name" data-i="'+i+'" list="exlib" placeholder="Exercise name" maxlength="40" value="'+esc(e.name)+'" aria-label="Exercise name"><div class="exmv"><button data-ra="up" data-i="'+i+'" aria-label="Move up"'+(i===0?' disabled':'')+'>'+IC.up+'</button><button data-ra="dn" data-i="'+i+'" aria-label="Move down"'+(i===r.ex.length-1?' disabled':'')+'>'+IC.dn+'</button><button class="x" data-ra="rm" data-i="'+i+'" aria-label="Remove exercise">'+IC.rm+'</button></div></div>'+
         '<div class="ex2"><div class="cap stepper"><button data-ra="sm" data-i="'+i+'" aria-label="Fewer sets">−</button><span><b>'+e.sets+'</b> sets</span><button data-ra="sp" data-i="'+i+'" aria-label="More sets">+</button></div>'+
         '<label class="cap repcap"><input type="text" data-rf="range" data-i="'+i+'" maxlength="8" value="'+esc(e.range)+'" placeholder="10–12" aria-label="Rep range"><span>reps</span></label>'+restPill(e.id)+'</div>'+
-        (function(){var on=warmEligible(e),own=e.wu!==undefined;return '<button class="wurow'+(on?' on':'')+(own?' own':'')+'" data-ra="wu" data-i="'+i+'" role="checkbox" aria-checked="'+on+'"><span class="wubox">'+(on?'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>':'')+'</span><span class="wut"><b>Warm-up sets</b><small>'+(own?(on?'Turned on by you':'Turned off by you'):(on?'Suggested for compound lifts':'Off for isolation lifts'))+'</small></span></button>'})()+'</div>';
+        (function(){var on=warmEligible(e),own=e.wu!==undefined;return '<button class="wurow'+(on?' on':'')+(own?' own':'')+'" data-ra="wu" data-i="'+i+'" role="checkbox" aria-checked="'+on+'"><span class="wubox">'+(on?'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>':'')+'</span><span class="wut"><b>Warm-up sets</b><small>'+(own?(on?'Turned on by you':'Turned off by you'):(on?'Suggested for compound lifts':'Off for isolation lifts'))+'</small></span></button>'})()+
+        (function(){var on=plateOn(e),own=e.pl!==undefined;return '<button class="wurow'+(on?' on':'')+(own?' own':'')+'" data-ra="pl" data-i="'+i+'" role="checkbox" aria-checked="'+on+'"><span class="wubox">'+(on?'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>':'')+'</span><span class="wut"><b>Plate-loaded</b><small>'+(own?(on?'Turned on by you':'Turned off by you'):(on?'Suggested for barbell lifts':'Weight stack. Plates pill hidden'))+'</small></span></button>'+(on?'<div class="psrow"><span>Starting weight<small>Empty sled or bar. 0 if none</small></span><div class="msstep"><button data-ra="psm" data-i="'+i+'" aria-label="Lower starting weight">−</button><span class="psv">'+fmtKg(startOf(e))+' kg</span><button data-ra="psp" data-i="'+i+'" aria-label="Raise starting weight">+</button></div></div>':'')})()+'</div>';
     });
     if(!r.ex.length)h+='<div class="help" style="padding:16px">No exercises yet. Add your first one below.</div>';
     h+='</div><button class="btn" data-ra="add">+ Add exercise</button>';
@@ -1822,6 +1837,8 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     if(a==="up"&&i>0){var x=r.ex[i];r.ex[i]=r.ex[i-1];r.ex[i-1]=x;saveRoutine(r);render();return}
     if(a==="dn"&&i<r.ex.length-1){var y=r.ex[i];r.ex[i]=r.ex[i+1];r.ex[i+1]=y;saveRoutine(r);render();return}
     if(a==="wu"){var wx2=r.ex[i];if(wx2){var nxt=!warmEligible(wx2);if(nxt===isCompound(wx2.name))delete wx2.wu;else wx2.wu=nxt;saveRoutine(r);render()}return}
+    if(a==="pl"){var px=r.ex[i];if(px){var pn=!plateOn(px);if(pn===isBarbell(px.name))delete px.pl;else px.pl=pn;saveRoutine(r);render()}return}
+    if(a==="psm"||a==="psp"){var qx=r.ex[i];if(qx){qx.ps=Math.max(0,Math.min(100,startOf(qx)+(a==="psp"?5:-5)));saveRoutine(r);render()}return}
     if(a==="sm"){r.ex[i].sets=Math.max(1,r.ex[i].sets-1);saveRoutine(r);render();return}
     if(a==="sp"){r.ex[i].sets=Math.min(10,r.ex[i].sets+1);saveRoutine(r);render();return}
     if(a==="dup"){tidyRoutine();var c={id:uid(),name:nextRoutineName(),ex:r.ex.map(cloneEx),updated:Date.now()};state.routines.push(c);saveRoutine(c);routineId=c.id;render();toast("Duplicated as "+c.name);return}
@@ -2045,7 +2062,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
       var parr=draft.sets[id2]||[],pi=0;for(var q=0;q<parr.length;q++){if(!parr[q].done){pi=q;break}pi=q}
       var pin=card.querySelector('.setrow[data-i="'+pi+'"] [data-f="kg"]'),pw=pin?(num(pin.value)||num(pin.placeholder)):null;
       if(!(pw>0)){toast("Enter a weight first");return}
-      openPlateSheet(pw);return;
+      openPlateSheet(pw,id2);return;
     }
     if(t.dataset.act==="wdone"){
       var wr=t.closest(".wrow"),wi=+wr.dataset.w,ws=draft.wu&&draft.wu[id2]&&draft.wu[id2][wi];if(!ws)return;
