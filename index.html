@@ -139,9 +139,13 @@ svg.chart{width:100%;height:auto;display:block;overflow:visible}
 #guide h2{margin:0 0 4px;font:800 26px var(--body);color:var(--ink)}
 #guide .gl{margin:0 0 16px;font:500 14.5px var(--body);color:var(--muted)}
 #guide .gs{display:flex;gap:12px;margin:0 0 16px}
-#guide .gn{flex:none;width:28px;height:28px;border-radius:50%;background:rgba(212,255,0,.14);color:var(--accent);font:800 14px var(--body);display:flex;align-items:center;justify-content:center}
+#guide .gn{flex:none;width:44px;height:44px;border-radius:14px;background:#1b1f25;border:1px solid rgba(255,255,255,.08);color:var(--accent);display:flex;align-items:center;justify-content:center}
 #guide .gs b{display:block;font:700 16px var(--body);color:var(--ink);margin-bottom:2px}
-#guide .gs span{font:500 14px/1.45 var(--body);color:var(--muted)}
+#guide .gs span{font:500 14px/1.45 var(--body);color:#9aa0aa}
+#guide .gs{margin:0 0 18px}
+#guide .gs b{color:#fff}
+#guide .gmode{color:var(--muted)}
+#guide .gback{-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 #guide .gfoot{padding:12px 20px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px}
 .gatecard{width:100%;max-width:380px;display:flex;flex-direction:column;gap:14px}
 .gatecard h1{font-size:44px}
@@ -567,6 +571,20 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
 .restrow.noanim{animation:none}
 .restrow .rl{font:700 10.5px var(--body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
 .restrow .rt{font:800 17px var(--body);font-variant-numeric:tabular-nums;min-width:38px;color:var(--ink)}
+.restrow button.rt{background:none;border:0;padding:0 4px;min-height:30px;border-radius:10px;text-align:left}
+.restrow button.rt:not(:disabled){box-shadow:0 0 0 1px rgba(255,255,255,.14)}
+.restrow.over button.rt{box-shadow:none}
+.resttip{position:relative;margin:14px 0 6px 20px;padding:12px 14px;border-radius:16px;background:var(--accent);color:var(--accent-ink);animation:rsfade .25s ease}
+.resttip .beak{position:absolute;top:-6px;left:var(--bx,40px);width:14px;height:14px;background:var(--accent);transform:rotate(45deg);border-radius:3px}
+.resttip b{display:block;font:800 14px var(--body)}
+.resttip span{display:block;font:600 13px/1.4 var(--body);margin-top:2px}
+.resttip button{display:block;margin:8px 0 0 auto;border:0;background:none;color:var(--accent-ink);font:800 13px var(--body);padding:4px 0 0;min-height:30px}
+.instbar{position:fixed;left:16px;right:16px;bottom:calc(98px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:22px;background:#1b1f25;border:1px solid rgba(212,255,0,.35);box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:528px;margin:0 auto}
+.instbar img{width:44px;height:44px;border-radius:12px;flex:none}
+.instbar b{display:block;font:800 15px var(--body);color:var(--ink)}
+.instbar span{display:block;font:500 13px/1.5 var(--body);color:#a3a9b3;margin-top:2px}
+.instbar span em{font-style:normal;font-weight:700;color:var(--ink)}
+.instbar button{flex:none;width:44px;height:44px;margin:-6px -6px 0 0;border:0;background:none;color:#a3a9b3;font:400 24px var(--body);min-height:0;padding:0}
 .restrow .rbar{flex:1;min-width:20px;height:3px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden;display:flex;justify-content:flex-end}
 .restrow .rbar i{display:block;height:100%;width:100%;background:var(--accent);border-radius:999px;transition:width .25s linear}
 .restrow button{flex:none;min-height:30px;border:0;border-radius:9999px;background:rgba(255,255,255,.1);color:var(--ink);font:700 12.5px var(--body);padding:0 11px}
@@ -731,23 +749,39 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     var g=$("#gate");g.hidden=!on;
     if(on){var b=$("#gbtn");if(b)b.disabled=false}else{var pw=$("#gpw");if(pw)pw.value=""}
     if(!on)render();
+    syncInstall();
   }
   var gateSignup=false;
   var GUIDE=[
-    ["Log a workout","Open the Workout tab and tick each set as you finish it. The faint grey numbers are what you did last time, so you can beat them. Your next exercise opens by itself."],
-    ["Rest timer","A rest bar appears after each set. Tap the time on an exercise to change its rest, or turn it off."],
-    ["Make your own workout","Go to Account, then Workouts, then add a new one. Pick your exercises, sets and reps. Switch between workouts with the chips at the top of the Workout tab. Workout A is a starter you can edit or ignore."],
-    ["Log cardio","The Cardio tab is for runs, rowing, cycling and stairs. Enter the distance and time and it works out your pace."],
-    ["Track your progress","History shows everything you have logged. Records has your best lifts and times. Tap one to open its graph."],
-    ["Add it to your Home Screen","In Safari tap Share, then Add to Home Screen. It opens like a normal app."]
+    ['<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>',"Build your workout","Choose your exercises, sets and reps in Account, then Workouts. Change them any time."],
+    ['<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 6.5v11M17.5 6.5v11M3 9v6M21 9v6M6.5 12h11"/></svg>',"Ghost numbers","After your first session, faint numbers show what you lifted last time. Match them or beat them."],
+    ['<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M9 2h6"/></svg>',"Rest timer","It starts by itself after each set. Tap the time to change it."]
   ];
-  function closeGuide(){var g=document.getElementById("guide");if(g&&g.parentNode)g.parentNode.removeChild(g)}
+  function installHint(){
+    try{
+      var ua=navigator.userAgent||"";
+      var ios=/iPhone|iPad|iPod/.test(ua)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+      var safari=/Safari/.test(ua)&&!/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+      return ios&&safari&&navigator.standalone===false&&localStorage.getItem("gl-install-x")!=="1";
+    }catch(e){return false}
+  }
+  function syncInstall(){
+    var el=document.getElementById("instbar"),g=document.getElementById("gate");
+    var want=installHint()&&!document.getElementById("guide")&&g&&g.hidden;
+    if(want&&!el){
+      el=document.createElement("div");el.id="instbar";el.className="instbar";el.setAttribute("role","region");el.setAttribute("aria-label","Install Gym Log");
+      el.innerHTML='<img src="icons/apple-touch-icon.png" alt=""><div style="flex:1"><b>Install Gym Log</b><span>Tap <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d4ff00" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px"><path d="M12 15V3M8 7l4-4 4 4M5 11v9h14v-9"/></svg> <em>Share</em>, then <em>Add to Home Screen</em> for the full-screen app.</span></div><button type="button" id="instx" aria-label="Dismiss">×</button>';
+      document.body.appendChild(el);
+    }else if(!want&&el&&el.parentNode)el.parentNode.removeChild(el);
+  }
+  document.addEventListener("click",function(ev){var x=ev.target.closest&&ev.target.closest("#instx");if(!x)return;try{localStorage.setItem("gl-install-x","1")}catch(e){}syncInstall()});
+  function closeGuide(){var g=document.getElementById("guide");if(g&&g.parentNode)g.parentNode.removeChild(g);syncInstall()}
   function openGuide(){
     closeGuide();
-    var h='<div class="gback" data-g="x"></div><div class="gpanel" role="dialog" aria-modal="true" aria-label="How to use Gym Log"><div class="gscroll"><div class="rshandle"></div><h2>Welcome to Gym Log</h2><p class="gl">A quick guide to get you going.</p>';
-    GUIDE.forEach(function(x,i){h+='<div class="gs"><div class="gn">'+(i+1)+'</div><div><b>'+esc(x[0])+'</b><span>'+esc(x[1])+'</span></div></div>'});
-    h+='</div><div class="gfoot"><button class="primary" data-g="setup">Set up my workout</button><button class="gmode" data-g="x">Got it</button></div></div>';
-    var el=document.createElement("div");el.id="guide";el.innerHTML=h;document.body.appendChild(el);
+    var h='<div class="gback" data-g="x"></div><div class="gpanel" role="dialog" aria-modal="true" aria-label="How to use Gym Log"><div class="gscroll"><div class="rshandle"></div><h2>Welcome to Gym Log</h2><p class="gl">Three things to know.</p>';
+    GUIDE.forEach(function(x){h+='<div class="gs"><div class="gn">'+x[0]+'</div><div><b>'+esc(x[1])+'</b><span>'+esc(x[2])+'</span></div></div>'});
+    h+='</div><div class="gfoot">'+(BASE_EX.length?'<button class="primary" data-g="x">Got it</button>':'<button class="primary" data-g="setup">Build my workout</button><button class="gmode" data-g="x">Skip for now</button>')+'</div></div>';
+    var el=document.createElement("div");el.id="guide";el.innerHTML=h;document.body.appendChild(el);syncInstall();
   }
   document.addEventListener("click",function(ev){
     var t=ev.target.closest&&ev.target.closest("[data-g]");if(!t)return;
@@ -1048,7 +1082,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
   function buzz(){haptic();pop()}
 
   /* ---------- rest timer ---------- */
-  var rest={end:0,total:0,iv:0,hide:0,on:false,over:false,show:false,anchor:null};
+  var rest={end:0,total:0,iv:0,hide:0,on:false,over:false,show:false,anchor:null,exId:null};
   function defaultRest(e){
     var t=e.rest||"",m=/(\d+(?:\.\d+)?)\s*min/i.exec(t);if(m)return Math.round(parseFloat(m[1])*60);
     m=/(\d+)\s*s(?:ec)?/i.exec(t);if(m)return +m[1];
@@ -1097,12 +1131,20 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     var row=a.before?card.querySelector(".setrow"):card.querySelector('.setrow[data-i="'+a.i+'"]');if(!row)return;
     var el=document.createElement("div");
     el.id="rest";el.className="restrow"+(animate?"":" noanim");el.setAttribute("role","timer");
-    el.innerHTML='<span class="rl">Rest</span><span class="rt"></span><span class="rbar"><i></i></span><button type="button" data-rest="add">+30s</button><button type="button" data-rest="skip">Skip</button>';
+    el.innerHTML='<span class="rl">Rest</span><button type="button" class="rt" data-rp="'+esc(rest.exId||"")+'" aria-label="Rest time. Tap to change it for this exercise"></button><span class="rbar"><i></i></span><button type="button" data-rest="add">+30s</button><button type="button" data-rest="skip">Skip</button>';
     row.insertAdjacentElement(a.before?"beforebegin":"afterend",el);
     if(rest.over)paintOver(el);else restPaint();
+    var oldt=document.getElementById("resttip");if(oldt&&oldt.parentNode)oldt.parentNode.removeChild(oldt);
+    if(!tipSeen()&&!rest.over){
+      var tip=document.createElement("div");tip.id="resttip";tip.className="resttip";tip.setAttribute("role","status");
+      tip.innerHTML='<i class="beak"></i><b>Rest timer running</b><span>Tap the time to change it for this exercise. You won\'t see this again.</span><button type="button" data-tip="got">Got it</button>';
+      el.insertAdjacentElement("afterend",tip);
+      var tr=el.querySelector(".rt").getBoundingClientRect(),tp=tip.getBoundingClientRect();
+      tip.style.setProperty("--bx",Math.max(12,tr.left+tr.width/2-tp.left-7)+"px");
+    }
   }
   function paintOver(el){
-    el.classList.add("over");el.querySelector(".rl").textContent="Rest over";el.querySelector(".rt").textContent="Go";
+    el.classList.add("over");el.querySelector(".rl").textContent="Rest over";var rtb=el.querySelector(".rt");rtb.textContent="Go";rtb.disabled=true;rtb.removeAttribute("data-rp");
     el.querySelector('[data-rest="add"]').hidden=true;el.querySelector('[data-rest="skip"]').textContent="Dismiss";
   }
   function restDone(){
@@ -1114,11 +1156,14 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
   function stopRest(){
     clearInterval(rest.iv);rest.iv=0;rest.on=false;rest.over=false;rest.show=false;clearTimeout(rest.hide);
     var el=document.getElementById("rest");if(el&&el.parentNode)el.parentNode.removeChild(el);
+    var tp=document.getElementById("resttip");if(tp){setTipSeen();if(tp.parentNode)tp.parentNode.removeChild(tp)}
   }
+  function tipSeen(){try{return localStorage.getItem("gl-tip-rest")==="1"}catch(e){return true}}
+  function setTipSeen(){try{localStorage.setItem("gl-tip-rest","1")}catch(e){}}
   function startRest(e,anchor){
     var secs=restSecs(e);
     clearInterval(rest.iv);clearTimeout(rest.hide);
-    rest.total=secs*1000;rest.end=Date.now()+rest.total;rest.on=true;rest.over=false;rest.show=true;rest.anchor=anchor;
+    rest.total=secs*1000;rest.end=Date.now()+rest.total;rest.on=true;rest.over=false;rest.show=true;rest.anchor=anchor;rest.exId=e.id;
     mountRest(true);
     rest.iv=setInterval(restTick,250);
   }
@@ -1887,7 +1932,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     var tt=$("#ttl");if(tt)tt.textContent=tab==="runs"?"Cardio":tab==="hist"?"History":tab==="acct"?"Account":wkName(wk);
     document.body.dataset.tab=tab;document.body.classList.toggle("nohap",!hapticOn());
     if(tab==="today")renderToday();else if(tab==="runs")renderRuns();else if(tab==="hist")renderHist();else renderAcct();
-    syncWake();
+    syncWake();syncInstall();
   }
 
   /* ---------- events ---------- */
@@ -1953,7 +1998,8 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     var t=ev.target.closest("button");if(!t)return;
     if(t.dataset.cm){cardMetric=t.dataset.cm;freshRec=null;render();return}
     if(t.dataset.rm){recMetric=t.dataset.rm;freshRec=null;render();return}
-    if(t.dataset.rp){openRestSheet(t.dataset.rp);return}
+    if(t.dataset.tip){setTipSeen();var tpe=document.getElementById("resttip");if(tpe&&tpe.parentNode)tpe.parentNode.removeChild(tpe);return}
+    if(t.dataset.rp){if(document.getElementById("resttip")){setTipSeen();var tq=document.getElementById("resttip");if(tq.parentNode)tq.parentNode.removeChild(tq)}openRestSheet(t.dataset.rp);return}
     if(t.dataset.mso){openMsSheet(t.dataset.mso);return}
     if(t.id==="ringbtn"){openGoalSheet();return}
     if(t.dataset.rest){restClick(t.dataset.rest);return}
