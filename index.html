@@ -682,7 +682,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
   function fmtDur(sec){var s=Math.round(sec),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),r=s%60;return h?h+":"+pad(m)+":"+pad(r):m+":"+pad(r)}
   function fmtKm(k){return (Math.round(k*100)/100).toString()}
   function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
-  function toast(t,undo){var el=$("#toast");el.textContent=t;el.classList.toggle("hasundo",!!undo);if(undo){var b=document.createElement("button");b.type="button";b.className="tundo";b.textContent="Undo";b.addEventListener("click",function(){clearTimeout(toast._t);el.hidden=true;undo()});el.appendChild(b)}el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(function(){el.hidden=true},undo?5000:2600)}
+  function toast(t,undo){var el=$("#toast");el.textContent=t;el.classList.toggle("hasundo",!!undo);if(undo){var b=document.createElement("button");b.type="button";b.className="tundo";b.textContent="Undo";b.addEventListener("click",function(){clearTimeout(toast._t);el.hidden=true;undo()});el.appendChild(b)}el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(function(){el.hidden=true},undo?2000:2600)}
   function typing(){var a=document.activeElement;return !!a&&(a.tagName==="INPUT"||a.tagName==="TEXTAREA")}
 
   /* ---------- persistence ---------- */
