@@ -478,6 +478,16 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
 @keyframes lcdraw{from{stroke-dashoffset:1200}to{stroke-dashoffset:0}}
 @media (prefers-reduced-motion:reduce){.recdet.fresh .lc .ll{animation:none}.recrow .rchev{transition:none}}
 .setrow input::placeholder{color:rgba(255,255,255,.3);opacity:1}
+.setrow:not(.wrow){position:relative;touch-action:pan-y;transition:transform .22s cubic-bezier(.16,1,.3,1)}
+.setrow.swd{transition:none}
+.setrow.swopen{transform:translateX(-56px)}
+.card.swon{overflow:hidden}
+.setdel{position:absolute;right:-50px;top:50%;margin-top:-22px;width:44px;height:44px;border-radius:50%;background:rgba(255,77,77,.16);border:1px solid rgba(255,77,77,.5);color:#ff6b6b;display:flex;align-items:center;justify-content:center;padding:0;opacity:0;pointer-events:none;transition:opacity .15s}
+.setrow.swopen .setdel,.setrow.swd .setdel{opacity:1}
+.setrow.swopen .setdel{pointer-events:auto}
+.toast.hasundo{display:flex;white-space:nowrap;align-items:center;gap:14px;padding:6px 8px 6px 16px}
+.toast .tundo{height:28px;padding:0 12px;border:0;border-radius:14px;background:#d4ff00;color:#0b0d00;font:800 13px var(--body);cursor:pointer}
+
 /* ---- routine editor: matching capsules, vector icons, rest picker ---- */
 .exmv button{display:flex;align-items:center;justify-content:center;width:34px;height:36px;font-size:0;color:rgba(255,255,255,.6)}
 .exmv .x{color:rgba(255,122,102,.75)}
@@ -672,7 +682,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
   function fmtDur(sec){var s=Math.round(sec),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),r=s%60;return h?h+":"+pad(m)+":"+pad(r):m+":"+pad(r)}
   function fmtKm(k){return (Math.round(k*100)/100).toString()}
   function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
-  function toast(t){var el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(function(){el.hidden=true},2600)}
+  function toast(t,undo){var el=$("#toast");el.textContent=t;el.classList.toggle("hasundo",!!undo);if(undo){var b=document.createElement("button");b.type="button";b.className="tundo";b.textContent="Undo";b.addEventListener("click",function(){clearTimeout(toast._t);el.hidden=true;undo()});el.appendChild(b)}el.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(function(){el.hidden=true},undo?5000:2600)}
   function typing(){var a=document.activeElement;return !!a&&(a.tagName==="INPUT"||a.tagName==="TEXTAREA")}
 
   /* ---------- persistence ---------- */
@@ -1570,7 +1580,7 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
         h+='<div class="setrow'+(s.done?' done':'')+'" data-i="'+i+'"><span class="n">'+(i+1)+'</span>'+
           '<label class="field"><span>kg</span>'+'<input type="number" inputmode="decimal" step="0.5" min="0" data-f="kg"'+(nd&&s.gk>0?' class="nudge"':'')+' value="'+esc(s.kg)+'" placeholder="'+esc(s.gk==null?"":(nd&&s.gk>0?fmtKg(+s.gk+NUDGE_STEP):s.gk))+'" aria-label="'+esc(e.name)+' set '+(i+1)+' kilograms"></label>'+
           '<label class="field"><span>'+(e.unit||"reps")+'</span><input type="number" inputmode="numeric" step="1" min="0" data-f="reps" value="'+esc(s.reps)+'" placeholder="'+esc(s.gr==null?"":s.gr)+'" aria-label="'+esc(e.name)+' set '+(i+1)+' reps"></label>'+
-          hw('<button class="chk" data-act="done" aria-label="Mark set '+(i+1)+' done">'+(s.done?'✓':'')+'</button>','schk')+'</div>';
+          hw('<button class="chk" data-act="done" aria-label="Mark set '+(i+1)+' done">'+(s.done?'✓':'')+'</button>','schk')+'<button type="button" class="setdel" aria-label="Remove set '+(i+1)+'" tabindex="-1"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button></div>';
       });
       h+='<button class="ghost" data-act="add">+ Add a set</button></section>';
     });
@@ -1985,6 +1995,39 @@ svg.lc{width:100%;height:auto;display:block;overflow:visible}
     var t=ev.target;
     if(t&&t.id==="wksel"){pickWk(t.value);render();window.scrollTo(0,0);document.body.classList.remove("kb","navhide")}
   });
+  (function(){
+    var sx=0,sy=0,row=null,mode=0,base=0,W=56;
+    function closeAll(except){Array.prototype.forEach.call(main.querySelectorAll(".setrow.swopen"),function(r){if(r!==except){r.classList.remove("swopen");var c=r.closest(".card");if(c)c.classList.remove("swon")}})}
+    function removeSet(r){
+      var c=r.closest("[data-ex]");if(!c)return;var id=c.dataset.ex,i=+r.dataset.i,arr=draft.sets[id];
+      if(!arr||arr.length<=1){r.classList.remove("swopen");c.classList.remove("swon");toast("Keep at least one set");return}
+      var gone=arr.splice(i,1)[0];saveDraft();render();
+      toast("Set removed",function(){arr.splice(i,0,gone);saveDraft();render()});
+    }
+    main.addEventListener("touchstart",function(ev){
+      var r=ev.target.closest&&ev.target.closest(".setrow[data-i]:not(.wrow)");
+      if(!r||ev.touches.length!==1){closeAll(null);row=null;return}
+      if(!r.classList.contains("swopen"))closeAll(r);
+      row=r;mode=0;sx=ev.touches[0].clientX;sy=ev.touches[0].clientY;base=r.classList.contains("swopen")?-W:0;
+    },{passive:true});
+    main.addEventListener("touchmove",function(ev){
+      if(!row)return;var dx=ev.touches[0].clientX-sx,dy=ev.touches[0].clientY-sy;
+      if(!mode){
+        if(Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy)*1.5){mode=1;row.classList.add("swd");row.closest(".card").classList.add("swon");var a=document.activeElement;if(a&&a.blur&&a.tagName==="INPUT")a.blur()}
+        else if(Math.abs(dy)>10){row=null;return}else return;
+      }
+      row.style.transform="translateX("+Math.max(-160,Math.min(0,base+dx))+"px)";
+    },{passive:true});
+    function end(){
+      if(!row)return;var r=row;row=null;if(mode!==1)return;
+      var m=/-?[\d.]+/.exec(r.style.transform),x=m?parseFloat(m[0]):0;
+      r.classList.remove("swd");r.style.transform="";
+      if(x<-130){removeSet(r);return}
+      if(x<-28)r.classList.add("swopen");else{r.classList.remove("swopen");r.closest(".card").classList.remove("swon")}
+    }
+    main.addEventListener("touchend",end);main.addEventListener("touchcancel",end);
+    main.addEventListener("click",function(ev){var b=ev.target.closest&&ev.target.closest(".setdel");if(!b)return;ev.stopImmediatePropagation();removeSet(b.closest(".setrow"))});
+  })();
   main.addEventListener("click",function(ev){
     if(ev.target.classList&&ev.target.classList.contains("hapov")){var hb=ev.target.previousElementSibling;ev.target.checked=false;try{ev.target.blur()}catch(e){}if(hb&&!hb.disabled)hb.click();return}
     var rcd=ev.target.closest("[data-rec]");
